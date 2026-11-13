@@ -339,7 +339,13 @@ class World {
     this._box(0.04, 0.17, 0.48, lm, 2.77, 0.085, 1.97, litter);
     this._box(0.56, 0.08, 0.42, mat(0xe9dfc6, { roughness: 1 }), 2.46, 0.07, 1.97, litter, { cast: false });
     this.poopGroup = new T.Group(); litter.add(this.poopGroup);
-    this._interact(litter, { id: 'litter', label: () => `Litter box (${this.poopCount || 0} to scoop): click to clean` });
+    this.clumpGroup = new T.Group(); litter.add(this.clumpGroup);
+    this._interact(litter, { id: 'litter', label: () => {
+      const p = this.poopCount || 0, c = this.clumpCount || 0;
+      if (!p && !c) return 'Litter box: clean';
+      const bits = []; if (p) bits.push(`${p} poop${p > 1 ? 's' : ''}`); if (c) bits.push(`${c} pee clump${c > 1 ? 's' : ''}`);
+      return `Litter box (${bits.join(', ')}): click to scoop`;
+    } });
 
     /* Cardboard box */
     const cb = mat(0xc89b62, { roughness: 1 });
@@ -399,17 +405,60 @@ class World {
     this.waterFill.position.y = 0.012 + (level / 100) * 0.048;
     const s = 0.82 + 0.18 * level / 100; this.waterFill.scale.set(s, 1, s);
   }
-  setPoops(n) {
-    if (this.poopCount === n) return;
-    this.poopCount = n;
-    const g = this.poopGroup;
+  // Litter box contents: poops (brown logs) and pee clumps (darker lumps of litter)
+  setLitter(poops, clumps) {
+    if (this.poopCount === poops && this.clumpCount === clumps) return;
+    this.poopCount = poops; this.clumpCount = clumps;
+    const g = this.poopGroup, cg = this.clumpGroup;
     while (g.children.length) g.remove(g.children[0]);
+    while (cg.children.length) cg.remove(cg.children[0]);
     const pm = mat(0x6b4a2b, { roughness: 0.9 });
-    for (let i = 0; i < Math.min(n, 6); i++) {
+    for (let i = 0; i < Math.min(poops, 6); i++) {
       const p = new T.Mesh(new T.CapsuleGeometry(0.018, 0.04, 4, 8), pm);
-      p.position.set(2.32 + (i % 3) * 0.12, 0.12, 1.86 + Math.floor(i / 3) * 0.18 + (i % 2) * 0.04);
+      p.position.set(2.3 + (i % 3) * 0.13, 0.12, 1.85 + Math.floor(i / 3) * 0.2 + (i % 2) * 0.04);
       p.rotation.set(Math.PI / 2, 0, i * 1.3);
+      p.castShadow = true;
       g.add(p);
+    }
+    const cm = mat(0xb39a6a, { roughness: 1 });
+    for (let i = 0; i < Math.min(clumps, 8); i++) {
+      const c = new T.Mesh(new T.SphereGeometry(0.045, 10, 8), cm);
+      c.scale.set(1 + (i % 3) * 0.2, 0.35, 0.9);
+      c.position.set(2.62 - (i % 4) * 0.1, 0.112, 2.08 - Math.floor(i / 4) * 0.22 - (i % 2) * 0.03);
+      c.rotation.y = i * 0.9;
+      cg.add(c);
+    }
+  }
+  setPoops(n) { this.setLitter(n, this.clumpCount || 0); }
+  /* Stink wisps: sources = [{x, y, z, k}] where k (0..1) is how strong it smells */
+  setStink(sources) { this.stinkSources = sources; }
+  _updateStink(dt) {
+    if (!this.stinkTex) {
+      this.stinkTex = canvasTex(64, 128, (g, w, h) => {
+        g.strokeStyle = 'rgba(150,170,70,0.9)'; g.lineWidth = 5; g.lineCap = 'round';
+        g.beginPath(); for (let y = 120; y > 8; y -= 4) g.lineTo(32 + Math.sin(y / 12) * 14, y); g.stroke();
+      });
+      this.wisps = [];
+    }
+    const src = this.stinkSources || [];
+    for (const s of src) {
+      s.acc = (s.acc || 0) + dt * (0.6 + s.k * 1.6);
+      if (s.acc > 1 && this.wisps.length < 40) {
+        s.acc = 0;
+        const sp = new T.Sprite(new T.SpriteMaterial({ map: this.stinkTex, transparent: true, depthWrite: false, opacity: 0 }));
+        sp.scale.set(0.09, 0.18, 1);
+        sp.position.set(s.x + (Math.random() - 0.5) * 0.25, s.y + 0.08, s.z + (Math.random() - 0.5) * 0.2);
+        sp.userData = { life: 0, max: 2.2 + Math.random(), k: s.k };
+        this.scene.add(sp); this.wisps.push(sp);
+      }
+    }
+    for (let i = this.wisps.length - 1; i >= 0; i--) {
+      const sp = this.wisps[i], u = sp.userData;
+      u.life += dt;
+      sp.position.y += dt * 0.12;
+      const f = u.life / u.max;
+      sp.material.opacity = Math.sin(Math.PI * Math.min(1, f)) * (0.35 + 0.45 * u.k);
+      if (f >= 1) { this.scene.remove(sp); sp.material.dispose(); this.wisps.splice(i, 1); }
     }
   }
   setLamp(on) {
@@ -435,7 +484,7 @@ class World {
       const g = this._messMesh(m);
       g.position.set(m.x, 0, m.z);
       this.scene.add(g);
-      this._interact(g, { id: 'mess', mess: m, label: () => ({ hairball: 'Hairball: click to clean up', puddle: 'Accident: click to clean up', shards: 'Broken vase: click to sweep up and glue back together' }[m.type] || 'Mess') });
+      this._interact(g, { id: 'mess', mess: m, label: () => ({ hairball: 'Hairball: click to clean up', puddle: 'Pee accident: click to clean up', poop: 'Poop on the floor: click to clean up', shards: 'Broken vase: click to sweep up and glue back together' }[m.type] || 'Mess') });
       this.messMeshes.set(m.id, g);
     }
     for (const [id, g] of this.messMeshes) if (!keep.has(id)) {
@@ -451,6 +500,12 @@ class World {
     } else if (m.type === 'puddle') {
       const p = new T.Mesh(new T.CircleGeometry(0.16, 20), new T.MeshStandardMaterial({ color: 0xf2d77a, transparent: true, opacity: 0.6, roughness: 0.05 }));
       p.rotation.x = -Math.PI / 2; p.position.y = 0.004; p.scale.set(1, 0.7, 1); g.add(p);
+    } else if (m.type === 'poop') {
+      const pm = mat(0x5e3f22, { roughness: 0.9 });
+      for (let i = 0; i < 3; i++) {
+        const p = new T.Mesh(new T.CapsuleGeometry(0.02, 0.045, 4, 8), pm);
+        p.rotation.set(Math.PI / 2, 0, i * 1.1); p.position.set((i - 1) * 0.035, 0.02, (i % 2) * 0.03); p.castShadow = true; g.add(p);
+      }
     } else if (m.type === 'shards') {
       const sm = mat(0x3f8f8a, { roughness: 0.35 });
       for (let i = 0; i < 7; i++) {
@@ -546,6 +601,7 @@ class World {
       this.bird.rotation.y = 0.3 + Math.sin(t * 1.3) * 0.6;
     }
     if (this.dangle) { const t = performance.now() / 1000; this.dangle.position.x = -2.1 + Math.sin(t * 1.7) * 0.012; }
+    this._updateStink(dt);
   }
   _physics(p, v, r, dt, rest, fric) {
     v.y -= 9.8 * dt;

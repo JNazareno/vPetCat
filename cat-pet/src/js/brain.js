@@ -74,7 +74,7 @@ class Sim {
       v: 2, name, coat, seed: Math.floor(rand(1, 9999)), traits, prefs: rollPrefs(traits), learned: {},
       clock, born: clock, coins: 25,
       needs: { hunger: 70, thirst: 75, energy: 80, fun: 70, hygiene: 90, social: 60 },
-      bond: 15, stress: 10, bladder: 15,
+      bond: 15, stress: 10, bladder: 15, bowel: 20, clumps: 0, uncovered: false,
       food: 40, wet: false, water: 85, poops: 0, messes: [], vaseBroken: false, lamp: false, sofaScratches: 0,
       cat: { x: 0.3, z: 0.6, h: 0.6, at: null }, toys: {},
       stats: { catches: 0, pets: 0, gifts: 0, meals: 0 },
@@ -83,7 +83,7 @@ class Sim {
     this._applyLoaded();
     return this.S;
   }
-  _newDay() { return { meals: 0, sleep: 0, play: 0, pets: 0, moodSum: 0, moodN: 0 }; }
+  _newDay() { return { meals: 0, sleep: 0, play: 0, pets: 0, pees: 0, poops: 0, accidents: 0, moodSum: 0, moodN: 0 }; }
   save() {
     if (!this.S) return;
     const S = this.S;
@@ -116,6 +116,12 @@ class Sim {
   reset() { try { for (const k of [SAVE_KEY, LEGACY_3D_KEY, OLD_SAVE_KEY]) localStorage.removeItem(k); } catch (e) {} this.S = null; }
   _applyLoaded() {
     const S = this.S, K = this.K;
+    // Fields added after the first 3D release
+    if (S.bowel == null) S.bowel = 20;
+    if (S.clumps == null) S.clumps = 0;
+    if (S.uncovered == null) S.uncovered = false;
+    if (S.day && S.day.pees == null) Object.assign(S.day, { pees: 0, poops: 0, accidents: 0 });
+    S.stats.pees = S.stats.pees || 0; S.stats.poops = S.stats.poops || 0; S.stats.accidents = S.stats.accidents || 0;
     K.x = S.cat.x; K.z = S.cat.z; K.h = S.cat.h; K.at = S.cat.at || null;
     K.y = K.at ? SPOTS[K.at].pos[1] : 0;
     if (K.at) { K.x = SPOTS[K.at].pos[0]; K.z = SPOTS[K.at].pos[2]; }
@@ -127,8 +133,9 @@ class Sim {
   }
   syncWorld() {
     const S = this.S, w = this.w;
-    w.setFood(S.food, S.wet); w.setWater(S.water); w.setPoops(S.poops);
+    w.setFood(S.food, S.wet); w.setWater(S.water); w.setLitter(S.poops, S.clumps);
     w.setLamp(S.lamp); w.setVase(S.vaseBroken); w.setSofaScratches(S.sofaScratches); w.syncMesses(S.messes);
+    this.updateStink();
   }
 
   /* ---------- helpers ---------- */
@@ -156,6 +163,15 @@ class Sim {
     this.S.messes.push({ id: Math.random().toString(36).slice(2, 9), type, x, z });
     this.w.syncMesses(this.S.messes);
   }
+  litterDirt() { return this.S.poops + this.S.clumps * 0.6 + (this.S.uncovered ? 1 : 0); }
+  litterLimit() { return this.tm('picky', false) ? 2 : 3.2; }
+  bathroomUrge() { return Math.max(this.S.bladder, this.S.bowel); }
+  updateStink() {
+    const S = this.S, d = this.litterDirt(), src = [];
+    if (d >= 1.5) src.push({ x: 2.46, y: 0.15, z: 1.97, k: Math.min(1, (d - 1) / 3) });
+    for (const m of S.messes) if (m.type === 'poop' || m.type === 'puddle') src.push({ x: m.x, y: 0.02, z: m.z, k: m.type === 'poop' ? 0.9 : 0.6 });
+    this.w.setStink(src);
+  }
   mood() {
     const N = this.S.needs, S = this.S;
     if (this.asleep) return ['😴', 'Sleeping'];
@@ -164,7 +180,8 @@ class Sim {
     if (S.stress > 70) return ['😿', 'Stressed'];
     if (N.hunger < 18) return ['😿', 'Starving'];
     if (N.thirst < 18) return ['😿', 'Thirsty'];
-    if (S.poops >= 3) return ['😾', 'Disgusted by the litter box'];
+    if (this.litterDirt() >= this.litterLimit()) return ['😾', 'Disgusted by the litter box'];
+    if (this.bathroomUrge() > 92 && !this.asleep) return ['🙀', 'Really needs the litter box'];
     if (N.energy < 18) return ['🥱', 'Exhausted'];
     if (N.fun < 20) return ['😾', 'Bored'];
     if (N.social < 20) return ['😿', 'Lonely'];
@@ -221,10 +238,16 @@ class Sim {
       S.day.sleep += dt;
     } else N.energy -= 5.5 * h * this.tm('energy') * st.energy;
     N.fun -= (sleeping ? 1.5 : 8.5) * h * this.tm('fun') * st.fun;
-    N.hygiene -= 2.2 * h + (S.poops >= 3 ? 2 * h : 0);
+    S.bladder = Math.min(100, S.bladder + 3 * h);
+    S.bowel = Math.min(100, S.bowel + 1.5 * h);
+    const dirt = this.litterDirt();
+    const floorWaste = S.messes.filter(m => m.type === 'poop' || m.type === 'puddle').length;
+    N.hygiene -= 2.2 * h + (dirt >= 3 ? 2 * h : 0) + floorWaste * 1.5 * h;
     N.social -= (sleeping ? 1 : 4.5) * h * this.tm('social');
     let stressUp = 0;
-    if (S.poops >= 3) stressUp += 6;
+    if (dirt >= this.litterLimit()) stressUp += 6;
+    stressUp += floorWaste * 4;
+    if (this.bathroomUrge() > 95) stressUp += 6;
     if (S.messes.length > 2) stressUp += 3;
     if (N.hunger < 15 || N.thirst < 15) stressUp += 8;
     S.stress = clamp(S.stress + (stressUp - 7) * h);
@@ -248,7 +271,7 @@ class Sim {
     const coins = Math.round(mood / 10 + S.bond / 15);
     S.coins += coins;
     const word = mood > 75 ? 'a great day' : mood > 55 ? 'a good day' : mood > 40 ? 'an okay day' : 'a rough day';
-    this.log(`📅 Day ${dayNum} recap: ${S.name} had ${word}. ${d.meals} meals, slept ${Math.round(d.sleep / 60)} h, played ${Math.round(d.play)} min, ${d.pets} pets. Allowance +${coins} 🪙`);
+    this.log(`📅 Day ${dayNum} recap: ${S.name} had ${word}. ${d.meals} meals, slept ${Math.round(d.sleep / 60)} h, played ${Math.round(d.play)} min, ${d.pets} pets, ${d.pees || 0} pees and ${d.poops || 0} poops${d.accidents ? ` (${d.accidents} outside the box)` : ''}. Allowance +${coins} 🪙`);
     S.day = this._newDay();
   }
   _world(dt) {
@@ -302,7 +325,8 @@ class Sim {
     const add = (score, make) => { if (score > 0) opts.push({ score, make }); };
     const floorToy = w.toys.filter(t => !t.held && !t.carriedBy);
     const beam = w.sunbeam();
-    add(S.bladder >= 75 ? 400 : 0, () => this.start('litter', this.actLitter(), 'Needs the litter box'));
+    add(S.bladder >= 72 ? 300 + S.bladder : 0, () => this.start('pee', this.actToilet('pee'), 'Needs to pee'));
+    add(S.bowel >= 80 ? 300 + S.bowel : 0, () => this.start('poop', this.actToilet('poop'), 'Needs to poop'));
     add(S.food > 1 && N.hunger < 72 ? (100 - N.hunger) * 1.3 : 0, () => this.start('eat', this.actEat(), 'Going to eat'));
     add(S.food <= 1 && N.hunger < 40 && !this.cool.meow ? (100 - N.hunger) * 1.1 : 0, () => this.start('beg', this.actBeg(), 'The food bowl is empty!'));
     add(S.water > 1 && N.thirst < 70 ? (100 - N.thirst) * 1.2 : 0, () => this.start('drink', this.actDrink(), 'Getting a drink'));
@@ -460,7 +484,7 @@ class Sim {
     while (S.food > 0.5 && N.hunger < 98) {
       const dt = yield;
       const a = Math.min(S.food, 5 * dt);
-      S.food -= a; N.hunger = clamp(N.hunger + a * (S.wet ? 1.25 : 1)); S.bladder += a * 0.32; ate += a;
+      S.food -= a; N.hunger = clamp(N.hunger + a * (S.wet ? 1.25 : 1)); S.bowel += a * 0.55; S.bladder += a * (S.wet ? 0.25 : 0.08); ate += a;
       if (S.wet) N.fun = clamp(N.fun + a * 0.08);
       if ((crunch -= dt) < 0) { crunch = 0.45; this.h.sound(S.wet ? 'slurp' : 'crunch'); }
       this.w.setFood(S.food, S.wet);
@@ -482,7 +506,7 @@ class Sim {
     while (S.water > 0.5 && N.thirst < 98) {
       const dt = yield;
       const a = Math.min(S.water, 4 * dt);
-      S.water -= a * 0.8; N.thirst = clamp(N.thirst + a * 1.4); S.bladder += a * 0.3;
+      S.water -= a * 0.8; N.thirst = clamp(N.thirst + a * 1.4); S.bladder += a * 0.5;
       if ((lap -= dt) < 0) { lap = 0.3; this.h.sound('lap'); }
       this.w.setWater(S.water);
     }
@@ -500,42 +524,113 @@ class Sim {
       yield* this.wait(rand(1.6, 2.6), 'sit');
     }
   }
-  *actLitter() {
-    const S = this.S;
-    const limit = this.tm('picky', false) ? 2 : 3;
+  /* Peeing and pooping: sniff, dig, turn, squat, bury. Refuses a dirty box. */
+  *actToilet(kind) {
+    const S = this.S, N = S.needs;
+    const pee = kind === 'pee';
+    const verb = pee ? 'pee' : 'poop';
     yield* this.goToSpot('litter');
-    if (S.poops >= limit) {
-      this.say(pick(['Ew. No.', '...this box is filthy.', 'Absolutely not.']), 2200);
-      yield* this.wait(1.4, 'stand');
-      yield* this.descend();
-      const [x, z] = [rand(0.9, 1.7), rand(1.3, 2.1)];
-      yield* this.walkTo(x, z, 0.5);
-      yield* this.wait(3, 'litter');
-      this.addMess('puddle', this.K.x - Math.sin(this.K.h) * 0.15, this.K.z - Math.cos(this.K.h) * 0.15);
-      S.bladder = 0; S.stress = clamp(S.stress + 15); S.bond = clamp(S.bond - 3);
-      this.log(`${S.name} refused the dirty litter box and went on the floor instead. 💦 Scoop more often!`);
-      return;
+    // Sniff and inspect the box
+    this.pose('sniff');
+    yield* this.wait(rand(0.8, 1.4));
+    const tooDirty = this.litterDirt() >= this.litterLimit();
+    const stressMark = pee && S.stress > 70 && Math.random() < 0.35;
+    if (tooDirty || stressMark) return yield* this.actAccident(kind, tooDirty ? 'dirty' : 'stress');
+    // Dig a little hole, then turn around to get in position
+    this.act.thought = pee ? 'Digging a spot to pee' : 'Digging a spot to poop';
+    this.pose('crouch'); this.knead = 1; this.h.sound('dig');
+    yield* this.wait(rand(1.0, 1.8));
+    this.knead = 0;
+    yield* this.turnAround();
+    // Squat
+    this.act.thought = pee ? 'Peeing… some privacy, please' : 'Pooping… don’t look';
+    this.pose(verb);
+    if (pee) { this.h.sound('trickle'); yield* this.wait(rand(3, 4.5)); }
+    else {
+      yield* this.wait(rand(4.5, 6.5), 'poop', (dt, t) => { this.m.pose.hipY = 0.12 + Math.sin(t * 9) * 0.004; });
+      this.h.sound('plop');
     }
-    this.pose('crouch'); this.knead = 1;
-    this.h.sound('dig');
+    if (pee) { S.clumps++; S.bladder = 0; S.day.pees++; S.stats.pees++; }
+    else { S.poops++; S.bowel = 0; S.day.poops++; S.stats.poops++; }
+    this.w.setLitter(S.poops, S.clumps);
+    // Bury it (or not)
+    yield* this.turnAround();
+    const skipChance = this.has('tidy') ? 0 : 0.12 * (this.has('aloof') ? 2.5 : 1) * (this.has('mischievous') ? 2 : 1);
+    if (Math.random() < skipChance) {
+      S.uncovered = true;
+      this.pose('sniff');
+      yield* this.wait(0.8);
+      this.log(`${S.name} didn't bother burying their ${verb}. The whole room knows. 🤢`);
+    } else {
+      this.act.thought = `Burying the ${verb}`;
+      this.pose('crouch'); this.knead = 1; this.h.sound('dig');
+      yield* this.wait(this.has('tidy') ? rand(3, 4.5) : rand(1.5, 2.5));
+      this.knead = 0;
+      this.pose('sniff'); yield* this.wait(0.6);
+    }
+    N.hygiene = clamp(N.hygiene - (pee ? 1.5 : 3));
+    if (this.litterDirt() >= this.litterLimit()) this.log(`The litter box needs scooping. ${S.name} won't use it much longer like this.`);
+    yield* this.descend();
+    this.updateStink();
+    // Post-poop zoomies are a real thing
+    if (!pee && Math.random() < 0.3 * this.tm('play')) {
+      this.say(pick(['!!!', 'I feel AMAZING', '*bolts out of the box*']), 1400);
+      if (Math.random() < 0.4) this.log(`${S.name} sprinted out of the litter box like it was on fire. Post-poop zoomies.`);
+      return yield* this.actZoomies(rand(3, 5));
+    }
+    if (this.has('tidy') || Math.random() < 0.3) yield* this.actGroom(rand(2, 4));
+  }
+  *turnAround() {
+    const h0 = this.K.h; let turned = 0;
+    this.pose('stand');
+    while (turned < Math.PI) { const dt = yield; turned += dt * 4.5; this.K.h = h0 + turned; this.K.speed = 0.3; }
+    this.K.speed = 0;
+  }
+  /* Going outside the box: pee on something soft, poop right next to the box */
+  *actAccident(kind, reason) {
+    const S = this.S, pee = kind === 'pee';
+    this.say(reason === 'dirty' ? pick(['Ew. No.', '…this box is filthy.', 'Absolutely not.']) : pick(['*anxious meow*', 'Mrrrow…']), 2000);
+    this.h.sound('grumble');
+    yield* this.wait(1.2, 'stand');
+    yield* this.descend();
+    let spot;
+    if (pee) {
+      const r = Math.random();
+      if (r < 0.45) spot = { x: rand(-0.3, 0.8), z: rand(0.1, 0.7), where: 'on the rug' };
+      else if (r < 0.7) spot = { x: SPOTS.bed.pos[0], z: SPOTS.bed.pos[2], where: 'in their bed', bed: true };
+      else spot = { x: rand(1.2, 1.8), z: rand(1.4, 2.1), where: 'on the floor' };
+    } else spot = { x: rand(1.75, 1.95), z: rand(1.6, 2.2), where: 'right next to the litter box' };
+    this.act.thought = pee ? 'Looking for somewhere soft…' : 'Not using THAT box';
+    if (spot.bed) yield* this.goToSpot('bed'); else yield* this.walkTo(spot.x, spot.z, 0.55);
+    this.pose('sniff'); this.knead = 1;
+    yield* this.wait(0.9);
+    this.knead = 0;
+    yield* this.turnAround();
+    this.pose(kind);
+    if (pee) this.h.sound('trickle');
+    yield* this.wait(pee ? rand(3, 4) : rand(4, 5.5));
+    const bx = this.K.x - Math.sin(this.K.h) * 0.13, bz = this.K.z - Math.cos(this.K.h) * 0.13;
+    this.addMess(pee ? 'puddle' : 'poop', spot.bed ? SPOTS.bed.pos[0] : bx, spot.bed ? SPOTS.bed.pos[2] : bz);
+    if (pee) S.bladder = 0; else S.bowel = 0;
+    S.day.accidents++; S.stats.accidents++;
+    S.stress = clamp(S.stress + 12); S.bond = clamp(S.bond - 2);
+    // Scratches the floor as if burying it (it doesn't work)
+    yield* this.turnAround();
+    this.pose('crouch'); this.knead = 1; this.h.sound('scratch');
     yield* this.wait(1.2);
     this.knead = 0;
-    yield* this.wait(3, 'litter');
-    S.poops += 1; S.bladder = 0;
-    this.w.setPoops(S.poops);
-    this.pose('crouch'); this.knead = 1; this.h.sound('dig');
-    yield* this.wait(1.0);
-    this.knead = 0;
-    S.needs.hygiene = clamp(S.needs.hygiene - 3);
-    if (S.poops >= limit) this.log(`The litter box needs scooping (${S.poops}). ${S.name} is getting picky.`);
-    yield* this.descend();
+    if (spot.bed) yield* this.descend();
+    this.updateStink();
+    const why = reason === 'dirty' ? 'The litter box was too dirty. Scoop more often!' : `${S.name} is very stressed. Stressed cats often go outside the box.`;
+    this.log(`${pee ? '💦' : '💩'} ${S.name} ${pee ? 'peed' : 'pooped'} ${spot.where}. ${why}`);
   }
   *actSleep(where) {
     const S = this.S, N = S.needs, w = this.w;
     let spot = where;
     if (!spot) {
       const beam = w.sunbeam();
-      const c = [['bed', 1.0 + (S.favSpot === 'bed' ? 0.4 : 0)], ['sofa', 0.7], ['treeTop', 0.45 + (this.has('aloof') ? 0.4 : 0)], ['box', 0.6 + S.stress / 60]];
+      const bedSoiled = S.messes.some(m => m.type === 'puddle' && Math.hypot(m.x - SPOTS.bed.pos[0], m.z - SPOTS.bed.pos[2]) < 0.35);
+      const c = [['bed', bedSoiled ? 0.02 : 1.0 + (S.favSpot === 'bed' ? 0.4 : 0)], ['sofa', 0.7], ['treeTop', 0.45 + (this.has('aloof') ? 0.4 : 0)], ['box', 0.6 + S.stress / 60]];
       if (beam) c.push(['beam', 1.6]);
       if (w.daylight > 0.4) c.push(['sill', 0.35]);
       let tot = c.reduce((s, x) => s + x[1], 0), r = Math.random() * tot;
@@ -573,7 +668,7 @@ class Sim {
       if ((zz -= dt) < 0) { zz = rand(2, 3.5); this.fx('z', '#8fa6e6'); }
       const hr = this.hour();
       if (N.energy >= 97) break;
-      if (N.hunger < 12 || N.thirst < 10 || S.bladder >= 90) break;
+      if (N.hunger < 12 || N.thirst < 10 || S.bladder >= 90 || S.bowel >= 95) break;
       if (hr > 6.5 && hr < 8 && N.energy > 80 && Math.random() < dt * 0.05) break;
     }
     this.asleep = false;
@@ -812,7 +907,7 @@ class Sim {
     yield* this.wait(1.2);
     if (this.w.treats.includes(treat)) this.w.removeTreat(treat);
     const m = this.tm('treat');
-    N.hunger = clamp(N.hunger + 4); N.fun = clamp(N.fun + 6 * m); S.bond = clamp(S.bond + 2 * m); S.bladder += 1;
+    N.hunger = clamp(N.hunger + 4); N.fun = clamp(N.fun + 6 * m); S.bond = clamp(S.bond + 2 * m); S.bowel += 2;
     this.fx('😋'); this.h.sound('crunch');
     this.lick = true;
     yield* this.wait(1.2, 'sit');
@@ -1125,29 +1220,37 @@ class Sim {
     // 1 real minute away = 6 game minutes, up to 8 game hours
     const mins = Math.min(8 * 60, (awayMs / 60000) * 6);
     const N = S.needs;
-    let sleeping = false, slept = 0, ate = 0, drank = 0, poops0 = S.poops, puddle = false;
+    let sleeping = false, slept = 0, ate = 0, drank = 0, trips = 0, accidents = 0;
     for (let t = 0; t < mins; t += 5) {
       const h = 5 / 60;
       S.clock += 5;
       N.hunger -= 6.5 * h * this.tm('hunger'); N.thirst -= 7.5 * h;
-      if (N.hunger < 60 && S.food > 0) { const a = Math.min(S.food, 100 - N.hunger); S.food -= a; N.hunger += a; S.bladder += a * 0.32; ate += a; if (S.food <= 0) S.wet = false; }
-      if (N.thirst < 60 && S.water > 0) { const a = Math.min(S.water, (100 - N.thirst) / 1.4); S.water -= a * 0.8; N.thirst += a * 1.4; S.bladder += a * 0.3; drank += a; }
+      if (N.hunger < 60 && S.food > 0) { const a = Math.min(S.food, 100 - N.hunger); S.food -= a; N.hunger += a; S.bowel += a * 0.55; S.bladder += a * 0.1; ate += a; if (S.food <= 0) S.wet = false; }
+      if (N.thirst < 60 && S.water > 0) { const a = Math.min(S.water, (100 - N.thirst) / 1.4); S.water -= a * 0.8; N.thirst += a * 1.4; S.bladder += a * 0.5; drank += a; }
       if (!sleeping && N.energy < 40) sleeping = true;
       if (sleeping) { N.energy += 15 * h; slept += 5; if (N.energy >= 95) sleeping = false; } else N.energy -= 5.5 * h;
       N.fun -= (sleeping ? 1.5 : 6) * h; N.hygiene -= 1 * h; N.social -= (sleeping ? 1 : 4) * h;
-      if (S.bladder >= 75) { S.bladder = 0; const limit = this.tm('picky', false) ? 2 : 3; if (S.poops < limit) S.poops++; else if (!puddle) { puddle = true; S.messes.push({ id: 'p' + t, type: 'puddle', x: rand(0.9, 1.7), z: rand(1.3, 2.1) }); } }
+      S.bladder += 3 * h; S.bowel += 1.5 * h;
+      for (const kind of ['pee', 'poop']) {
+        const full = kind === 'pee' ? S.bladder >= 72 : S.bowel >= 80;
+        if (!full) continue;
+        if (kind === 'pee') S.bladder = 0; else S.bowel = 0;
+        if (this.litterDirt() < this.litterLimit()) { if (kind === 'pee') { S.clumps++; S.stats.pees++; } else { S.poops++; S.stats.poops++; } trips++; }
+        else if (accidents < 2) { accidents++; S.stats.accidents++; S.messes.push({ id: kind[1] + t, type: kind === 'pee' ? 'puddle' : 'poop', x: kind === 'pee' ? rand(-0.3, 0.8) : rand(1.75, 1.95), z: kind === 'pee' ? rand(0.1, 0.7) : rand(1.6, 2.2) }); }
+      }
       for (const k in N) N[k] = clamp(N[k], 12, 100);
     }
     let knocked = false;
     if (!S.vaseBroken && Math.random() < 0.08 * this.tm('knock') * (mins / 60)) { S.vaseBroken = true; knocked = true; S.messes.push({ id: 'v' + Date.now(), type: 'shards', x: 2.2, z: -1.3 }); }
     if (sleeping) { S.cat = { x: SPOTS.bed.pos[0], z: SPOTS.bed.pos[2], h: 1, at: 'bed' }; }
     this._applyLoaded();
+    this.updateStink();
     const bits = [];
     if (ate > 2) bits.push('ate');
     if (drank > 2) bits.push('had some water');
     if (slept > 20) bits.push(`napped about ${Math.round(slept / 60 * 10) / 10} h`);
-    if (S.poops > poops0) bits.push('used the litter box');
-    if (puddle) bits.push('had an accident (the box was full)');
+    if (trips) bits.push(`used the litter box ${trips === 1 ? 'once' : trips + ' times'}`);
+    if (accidents) bits.push(`went outside the box ${accidents === 1 ? 'once' : 'twice'} (it was too dirty)`);
     if (knocked) bits.push('knocked over the vase');
     const msg = `While you were away (${mins >= 60 ? (mins / 60).toFixed(1) + ' game hours' : Math.round(mins) + ' game minutes'}), ${S.name} ${bits.length ? bits.join(', ') : 'mostly stared out of the window'}.`;
     this.log(msg);
