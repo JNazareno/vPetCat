@@ -1,7 +1,7 @@
-/* Whisker Room: procedural 3D cat (model, coat painting, pose blending, animation) */
+/* Virtual Pet Cat: procedural 3D cat (model, coat painting, pose blending, animation) */
 (function () {
 'use strict';
-const WR = window.WR = window.WR || {};
+const VPC = window.VPC = window.VPC || {};
 const T = THREE;
 
 const COATS = {
@@ -13,7 +13,7 @@ const COATS = {
   calico: { name: 'Calico',       base: '#f5eee2', dark: '#2a2320', light: '#ffffff', eye: '#d79a2b', pattern: 'calico', patch: '#df8638' },
   siamese:{ name: 'Siamese',      base: '#efe2cc', dark: '#5a4234', light: '#f8efe0', eye: '#5aa9e6', pattern: 'point' },
 };
-WR.COATS = COATS;
+VPC.COATS = COATS;
 
 /* ---------- tiny 3D value noise ---------- */
 function hash(x, y, z, seed) { let h = (x * 374761393 + y * 668265263 + z * 1442695041 + seed * 9737333) | 0; h = (h ^ (h >>> 13)) * 1274126177 | 0; return ((h ^ (h >>> 16)) >>> 0) / 4294967295; }
@@ -122,7 +122,7 @@ const POSES = {
   knead:   { hipY: 0.1, pitch: 0.1, fTuck: 0.3, rTuck: 1, headPitch: 0.1, eye: 0.25, tailUp: 0.2 },
   happy:   { hipY: 0.085, pitch: 0.62, headPitch: -0.15, rTuck: 1, eye: 0.25, tailUp: 1.1 },
 };
-WR.POSES = POSES;
+VPC.POSES = POSES;
 
 const L = 0.2;       // leg length
 const PAW_R = 0.026;
@@ -403,5 +403,5 @@ class CatModel {
     return z;
   }
 }
-WR.CatModel = CatModel;
+VPC.CatModel = CatModel;
 })();

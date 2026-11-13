@@ -1,12 +1,16 @@
-/* Whisker Room: UI, input, audio and main loop */
+/* Virtual Pet Cat: UI, input, audio and main loop */
 (function () {
 'use strict';
-const WR = window.WR;
+const VPC = window.VPC;
 const T = THREE;
 const $ = id => document.getElementById(id);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const pick = a => a[Math.floor(Math.random() * a.length)];
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+/* Small settings stored in the browser (falls back to keys from before the rename) */
+function getPref(name) { try { const v = localStorage.getItem('virtual-pet-cat-' + name); return v !== null ? v : localStorage.getItem('whisker-' + name); } catch (e) { return null; } }
+function setPref(name, v) { try { localStorage.setItem('virtual-pet-cat-' + name, v); } catch (e) {} }
 
 /* ================= Audio (synthesized, no files) ================= */
 const Snd = {
@@ -86,14 +90,14 @@ const Snd = {
 /* ================= Setup ================= */
 const canvas = $('scene');
 let world;
-try { world = new WR.World(canvas); }
+try { world = new VPC.World(canvas); }
 catch (e) {
   console.error(e);
-  window.WR_bootFail && window.WR_bootFail('Your browser couldn\u2019t start 3D graphics (WebGL). Turn on hardware acceleration in your browser settings, update your browser, or try another one.');
-  window.WR_started = true;
+  window.VPC_bootFail && window.VPC_bootFail('Your browser couldn\u2019t start 3D graphics (WebGL). Turn on hardware acceleration in your browser settings, update your browser, or try another one.');
+  window.VPC_started = true;
   throw e;
 }
-const model = new WR.CatModel('orange', 1);
+const model = new VPC.CatModel('orange', 1);
 world.scene.add(model.group);
 const hooks = {
   say: (t, ms) => say(t, ms),
@@ -103,8 +107,8 @@ const hooks = {
   forceDrop: () => endCarry(true),
   onSwat: () => { flash(); gesture = null; },
 };
-const sim = new WR.Sim(world, model, hooks);
-WR.sim = sim; WR.world = world; WR.model = model; // console handles
+const sim = new VPC.Sim(world, model, hooks);
+VPC.sim = sim; VPC.world = world; VPC.model = model; // console handles
 
 let speed = 1;
 let tool = 'hand';
@@ -145,14 +149,14 @@ const TOOLS = [
   { id: 'brush', icon: '🪮', label: 'Brush', hint: 'Stroke the cat to brush it. Helps hygiene and prevents hairballs. Not every cat likes it.' },
   { id: 'laser', icon: '🔴', label: 'Laser', hint: 'Point at the floor or walls. Each "catch" earns 🪙. Right-drag or two-finger drag to turn the camera.' },
   { id: 'wand', icon: '🪶', label: 'Wand', hint: 'Dangle the feather near the cat, then hold the mouse button to lift it. Wiggle it to keep the cat interested!' },
-  { id: 'treat', icon: '🍬', label: 'Treat', hint: `Click the floor to toss a treat (${WR.PRICES.treat} 🪙). Great for bonding.` },
+  { id: 'treat', icon: '🍬', label: 'Treat', hint: `Click the floor to toss a treat (${VPC.PRICES.treat} 🪙). Great for bonding.` },
 ];
 const ACTIONS = [
   { id: 'kibble', icon: '🥣', label: 'Kibble', fn: () => addFood(false) },
-  { id: 'wet', icon: '🥫', label: `Wet ${WR.PRICES.wet}🪙`, fn: () => addFood(true) },
+  { id: 'wet', icon: '🥫', label: `Wet ${VPC.PRICES.wet}🪙`, fn: () => addFood(true) },
   { id: 'water', icon: '🚰', label: 'Water', fn: refillWater },
   { id: 'scoop', icon: '🧹', label: 'Scoop', fn: scoop },
-  { id: 'catnip', icon: '🌿', label: `Nip ${WR.PRICES.catnip}🪙`, fn: catnip },
+  { id: 'catnip', icon: '🌿', label: `Nip ${VPC.PRICES.catnip}🪙`, fn: catnip },
   { id: 'bath', icon: '🛁', label: 'Bath', fn: bath },
   { id: 'lamp', icon: '💡', label: 'Lamp', fn: toggleLamp },
   { id: 'follow', icon: '🎥', label: 'Follow', fn: () => { follow = !follow; if (!follow) world.orbit.goalTarget.set(0, 0.35, 0.1); renderButtons(); } },
@@ -191,10 +195,10 @@ function renderButtons() {
   if (!S) return;
   set('follow', follow);
   set('lamp', S.lamp);
-  set('wet', false, S.coins < WR.PRICES.wet);
-  set('catnip', false, S.coins < WR.PRICES.catnip);
+  set('wet', false, S.coins < VPC.PRICES.wet);
+  set('catnip', false, S.coins < VPC.PRICES.catnip);
   set('scoop', S.poops >= 2, false);
-  const tb = document.querySelector('[data-tool="treat"]'); if (tb) tb.disabled = S.coins < WR.PRICES.treat;
+  const tb = document.querySelector('[data-tool="treat"]'); if (tb) tb.disabled = S.coins < VPC.PRICES.treat;
 }
 function barCls(v, inv) { if (inv) v = 100 - v; return v < 25 ? 'low' : v < 55 ? 'mid' : ''; }
 function fmtClock(S) {
@@ -233,13 +237,13 @@ function renderPanel(soft) {
   const S = sim.S; if (!S || activeTab === 'needs') return;
   let html = '';
   if (activeTab === 'cat') {
-    html += `<div class="traits">${S.traits.map(t => `<div><b>${WR.TRAITS[t].label}</b> ${esc(WR.TRAITS[t].desc)}</div>`).join('')}</div>`;
+    html += `<div class="traits">${S.traits.map(t => `<div><b>${VPC.TRAITS[t].label}</b> ${esc(VPC.TRAITS[t].desc)}</div>`).join('')}</div>`;
     html += '<h4>What you\'ve learned</h4><ul class="prefs">';
-    for (const z of [...WR.ZONES, 'brush']) {
+    for (const z of [...VPC.ZONES, 'brush']) {
       const n = S.learned[z] || 0, p = S.prefs[z];
       const known = n >= 4;
       const verdict = !known ? '<span class="muted">??? (try it)</span>' : p > 1.2 ? 'Loves it 😻' : p > 0.5 ? 'Likes it 😺' : p > 0 ? 'Tolerates it 🐱' : p > -0.6 ? 'Dislikes it 😾' : 'Hates it 🙀';
-      html += `<li><span>${WR.ZONE_LABEL[z]}</span><span>${verdict}</span></li>`;
+      html += `<li><span>${VPC.ZONE_LABEL[z]}</span><span>${verdict}</span></li>`;
     }
     html += '</ul>';
     html += `<h4>Stats</h4><div class="muted small">Dot catches: ${S.stats.catches} · Pets: ${S.stats.pets} · Gifts: ${S.stats.gifts} · Meals: ${S.stats.meals}${S.sofaScratches ? ` · Sofa scratches: ${S.sofaScratches}` : ''}</div>`;
@@ -257,7 +261,7 @@ function spend(n) { if (sim.S.coins < n) { toast(`Not enough coins (need ${n} �
 function addFood(wet) {
   if (!needCat()) return;
   const S = sim.S;
-  if (wet) { if (!spend(WR.PRICES.wet)) return; S.food = Math.min(100, S.food + 60); S.wet = true; toast('Wet food served. Fancy!'); }
+  if (wet) { if (!spend(VPC.PRICES.wet)) return; S.food = Math.min(100, S.food + 60); S.wet = true; toast('Wet food served. Fancy!'); }
   else { if (S.food >= 95) return toast('The bowl is already full.'); S.food = Math.min(100, S.food + 50); toast('Kibble added to the bowl.'); }
   Snd.play('crunch'); world.setFood(S.food, S.wet);
   if (sim.asleep && sim.has('foodie') && wet) { sim.asleep = false; sim.act = null; }
@@ -270,7 +274,7 @@ function scoop() {
   S.poops = 0; world.setPoops(0); Snd.play('sweep'); toast('Litter box scooped. 🧹');
   sim.log('You scooped the litter box.');
 }
-function catnip() { if (!needCat()) return; if (sim.act && ['carried', 'bath'].includes(sim.act.name)) return; if (!spend(WR.PRICES.catnip)) return; sim.catnip(); sim.log(`You sprinkled catnip on the rug. ${sim.S.name} is... affected.`); }
+function catnip() { if (!needCat()) return; if (sim.act && ['carried', 'bath'].includes(sim.act.name)) return; if (!spend(VPC.PRICES.catnip)) return; sim.catnip(); sim.log(`You sprinkled catnip on the rug. ${sim.S.name} is... affected.`); }
 function bath() { if (!needCat()) return; if (gesture && gesture.type === 'carry') endCarry(true); sim.bath(); }
 function toggleLamp() { if (!needCat()) return; sim.S.lamp = !sim.S.lamp; world.setLamp(sim.S.lamp); Snd.play('pop'); renderButtons(); }
 function cleanMess(m) {
@@ -323,7 +327,7 @@ function laserPoint(n) {
   const h = rc.intersectObjects(world.surfaces, false)[0];
   return h ? h.point.clone().addScaledVector(h.face ? h.face.normal.clone().transformDirection(h.object.matrixWorld) : new T.Vector3(0, 1, 0), 0.01) : null;
 }
-function clampRoom(p) { p.x = clamp(p.x, WR.BOUNDS.minX, WR.BOUNDS.maxX); p.z = clamp(p.z, WR.BOUNDS.minZ, WR.BOUNDS.maxZ); return p; }
+function clampRoom(p) { p.x = clamp(p.x, VPC.BOUNDS.minX, VPC.BOUNDS.maxX); p.z = clamp(p.z, VPC.BOUNDS.minZ, VPC.BOUNDS.maxZ); return p; }
 
 canvas.addEventListener('contextmenu', e => e.preventDefault());
 canvas.addEventListener('pointerdown', e => {
@@ -350,7 +354,7 @@ canvas.addEventListener('pointerdown', e => {
     const p = world.floorPoint(n.x, n.y);
     if (p && sim.S) {
       clampRoom(p);
-      if (spend(WR.PRICES.treat)) { world.spawnTreat(p.x, p.z); toast('Treat tossed!'); }
+      if (spend(VPC.PRICES.treat)) { world.spawnTreat(p.x, p.z); toast('Treat tossed!'); }
     }
     gesture = { type: 'orbit', x: e.clientX, y: e.clientY, moved: 0 };
     return;
@@ -499,12 +503,12 @@ function endCarry(forced, n) {
   const K = sim.K;
   let spot = null;
   for (const id of ['bed', 'sofa', 'box', 'treeLow', 'treeTop', 'sill']) {
-    const p = WR.SPOTS[id].pos;
+    const p = VPC.SPOTS[id].pos;
     const r = id === 'sofa' ? 0.7 : 0.35;
     if (Math.hypot(K.x - p[0], K.z - p[2]) < r) { spot = id; break; }
   }
   if (forced) { spot = null; sim.say('*wriggles free*', 1400); }
-  if (spot === 'sofa' || spot === 'bed') sim.log(`You put ${sim.S.name} on the ${WR.SPOTS[spot].label}.`);
+  if (spot === 'sofa' || spot === 'bed') sim.log(`You put ${sim.S.name} on the ${VPC.SPOTS[spot].label}.`);
   sim.drop(K.x, K.z, spot);
   if (gesture && gesture.type === 'carry') gesture = null;
 }
@@ -531,7 +535,7 @@ function hover(e, n) {
     const ch = hitCat(n);
     if (ch) {
       const z = model.zoneFor(ch);
-      label = `${sim.S.name}: ${tool === 'hand' ? 'stroke to pet, hold to pick up' : 'stroke to brush'} (${WR.ZONE_LABEL[z] || z})`;
+      label = `${sim.S.name}: ${tool === 'hand' ? 'stroke to pet, hold to pick up' : 'stroke to brush'} (${VPC.ZONE_LABEL[z] || z})`;
       canvas.style.cursor = 'grab';
     } else if (tool === 'hand') {
       const ih = hitInteract(n);
@@ -544,11 +548,11 @@ function hover(e, n) {
 }
 
 /* ================= Adoption / settings ================= */
-let draft = { coat: 'orange', traits: WR.rollTraits(), seed: 1 };
+let draft = { coat: 'orange', traits: VPC.rollTraits(), seed: 1 };
 const NAMES = ['Mochi', 'Miso', 'Biscuit', 'Pepper', 'Noodle', 'Tofu', 'Luna', 'Mango', 'Pickles', 'Olive', 'Sushi', 'Waffles', 'Juniper', 'Pixel'];
 function openAdopt() {
   started = false;
-  $('swatches').innerHTML = Object.entries(WR.COATS).map(([k, c]) => {
+  $('swatches').innerHTML = Object.entries(VPC.COATS).map(([k, c]) => {
     const bg = c.pattern === 'calico' ? `conic-gradient(${c.base} 0 33%, ${c.patch} 0 66%, ${c.dark} 0)` : c.pattern === 'tuxedo' ? `linear-gradient(90deg,${c.base} 50%,${c.light} 50%)` : c.pattern === 'point' ? `radial-gradient(${c.base} 40%, ${c.dark} 75%)` : c.pattern === 'tabby' ? `repeating-linear-gradient(45deg,${c.base} 0 4px,${c.dark} 4px 7px)` : c.base;
     return `<button class="swatch" data-coat="${k}"><span class="dot" style="background:${bg}"></span>${c.name}</button>`;
   }).join('');
@@ -562,7 +566,7 @@ function openAdopt() {
 }
 function renderAdopt() {
   document.querySelectorAll('.swatch').forEach(b => b.classList.toggle('sel', b.dataset.coat === draft.coat));
-  $('adoptTraits').innerHTML = draft.traits.map(t => `<div><b>${WR.TRAITS[t].label}</b> ${esc(WR.TRAITS[t].desc)}</div>`).join('');
+  $('adoptTraits').innerHTML = draft.traits.map(t => `<div><b>${VPC.TRAITS[t].label}</b> ${esc(VPC.TRAITS[t].desc)}</div>`).join('');
 }
 $('swatches').addEventListener('click', e => {
   const b = e.target.closest('.swatch'); if (!b) return;
@@ -570,36 +574,36 @@ $('swatches').addEventListener('click', e => {
   model.build(draft.coat, draft.seed); model.setScale(1.3); model.setPose('sit');
   renderAdopt();
 });
-$('rollBtn').addEventListener('click', () => { draft.traits = WR.rollTraits(); renderAdopt(); });
+$('rollBtn').addEventListener('click', () => { draft.traits = VPC.rollTraits(); renderAdopt(); });
 $('adoptBtn').addEventListener('click', () => {
   Snd.init();
   const name = $('adoptName').value.trim().slice(0, 16) || pick(NAMES);
   sim.newCat(name, draft.coat, draft.traits);
   sim.S.seed = draft.seed; model.build(draft.coat, draft.seed); model.setScale(sim.stage().scale * 1.3);
   $('adopt').classList.remove('open');
-  const coatName = WR.COATS[draft.coat].name.toLowerCase();
+  const coatName = VPC.COATS[draft.coat].name.toLowerCase();
   sim.log(`You adopted ${name}, ${/^[aeiou]/.test(coatName) ? 'an' : 'a'} ${coatName} kitten. Welcome home! 🏠`);
   begin();
   setTimeout(() => { say('Mew?'); Snd.play('meow'); }, 700);
-  try { if (!localStorage.getItem('whisker-help-seen')) { $('help').classList.add('open'); localStorage.setItem('whisker-help-seen', '1'); } } catch (e) {}
+  if (!getPref('help-seen')) { $('help').classList.add('open'); setPref('help-seen', '1'); }
   sim.save();
 });
 $('settingsBtn').addEventListener('click', () => $('settings').classList.add('open'));
 $('helpBtn').addEventListener('click', () => $('help').classList.add('open'));
 document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', () => b.closest('.modal').classList.remove('open')));
-$('soundBtn').addEventListener('click', () => { Snd.init(); Snd.setOn(!Snd.on); $('soundBtn').textContent = Snd.on ? '🔊' : '🔇'; try { localStorage.setItem('whisker-sound', Snd.on ? '1' : '0'); } catch (e) {} });
+$('soundBtn').addEventListener('click', () => { Snd.init(); Snd.setOn(!Snd.on); $('soundBtn').textContent = Snd.on ? '🔊' : '🔇'; setPref('sound', Snd.on ? '1' : '0'); });
 $('panelToggle').addEventListener('click', () => document.body.classList.toggle('panel-open'));
-$('theme').addEventListener('change', e => { setTheme(e.target.value); try { localStorage.setItem('whisker-theme', e.target.value); } catch (er) {} });
+$('theme').addEventListener('change', e => { setTheme(e.target.value); setPref('theme', e.target.value); });
 function setTheme(v) { if (v) document.documentElement.dataset.theme = v; else delete document.documentElement.dataset.theme; }
 $('resetBtn').addEventListener('click', () => {
   if (!confirm(`Rehome ${sim.S ? sim.S.name : 'your cat'} and start over? This can't be undone.`)) return;
   sim.reset(); $('settings').classList.remove('open');
-  draft = { coat: 'orange', traits: WR.rollTraits(), seed: 1 };
+  draft = { coat: 'orange', traits: VPC.rollTraits(), seed: 1 };
   openAdopt();
 });
 try {
-  const th = localStorage.getItem('whisker-theme'); if (th) { setTheme(th); $('theme').value = th; }
-  if (localStorage.getItem('whisker-sound') === '0') { Snd.on = false; $('soundBtn').textContent = '🔇'; }
+  const th = getPref('theme'); if (th) { setTheme(th); $('theme').value = th; }
+  if (getPref('sound') === '0') { Snd.on = false; $('soundBtn').textContent = '🔇'; }
 } catch (e) {}
 
 function begin() {
@@ -671,8 +675,8 @@ if (loaded) {
   else sim.save();
 } else openAdopt();
 requestAnimationFrame(frame);
-window.WR_started = true;
+window.VPC_started = true;
 { const bootEl = $('boot'); if (bootEl) bootEl.remove(); }
 
-window.whisker = { sim, world, model, setSpeed: v => { speed = v; renderButtons(); }, setTool };
+window.virtualPetCat = { sim, world, model, setSpeed: v => { speed = v; renderButtons(); }, setTool };
 })();

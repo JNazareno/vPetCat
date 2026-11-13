@@ -1,7 +1,7 @@
-/* Whisker Room: 3D world (room, furniture, lighting, day cycle, toys and physics) */
+/* Virtual Pet Cat: 3D world (room, furniture, lighting, day cycle, toys and physics) */
 (function () {
 'use strict';
-const WR = window.WR = window.WR || {};
+const VPC = window.VPC = window.VPC || {};
 const T = THREE;
 
 const ROOM = { minX: -3, maxX: 3, minZ: -2.5, maxZ: 2.5, wallH: 2.8 };
@@ -39,7 +39,7 @@ const POINTS = {
 };
 const WINDOW = { x0: -1.5, x1: -0.1, y0: 0.95, y1: 2.05, z: -2.5 };
 
-WR.ROOM = ROOM; WR.BOUNDS = BOUNDS; WR.BLOCKERS = BLOCKERS; WR.SPOTS = SPOTS; WR.POINTS = POINTS;
+VPC.ROOM = ROOM; VPC.BOUNDS = BOUNDS; VPC.BLOCKERS = BLOCKERS; VPC.SPOTS = SPOTS; VPC.POINTS = POINTS;
 
 /* ---------- helpers ---------- */
 function mat(color, o = {}) { return new T.MeshStandardMaterial(Object.assign({ color, roughness: 0.85, metalness: 0 }, o)); }
@@ -605,6 +605,6 @@ class World {
   render() { this.renderer.render(this.scene, this.camera); }
 }
 
-WR.World = World;
-WR.mat = mat;
+VPC.World = World;
+VPC.mat = mat;
 })();
