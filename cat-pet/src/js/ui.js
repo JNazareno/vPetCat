@@ -76,6 +76,8 @@ const Snd = {
       case 'jingle': for (const f of [2600, 3300, 3900]) this.tone(t + Math.random() * 0.05, 0.35, 'sine', f, f, 0.06); break;
       case 'bat': this.noiseBurst(t, 0.05, 'lowpass', 900, 0.25); break;
       case 'scratch': for (let i = 0; i < 6; i++) this.noiseBurst(t + i * 0.22, 0.14, 'bandpass', 1400, 0.12, 2); break;
+      case 'trickle': this.noiseBurst(t, 2.6, 'bandpass', 2400, 0.06, 3); break;
+      case 'plop': this.tone(t, 0.12, 'sine', 300, 120, 0.12); break;
       case 'dig': for (let i = 0; i < 4; i++) this.noiseBurst(t + i * 0.18, 0.1, 'bandpass', 900, 0.1, 1.5); break;
       case 'yawn': this.tone(t, 0.7, 'sine', 380, 220, 0.08); break;
       case 'hack': for (let i = 0; i < 3; i++) this.noiseBurst(t + i * 0.3, 0.15, 'lowpass', 500, 0.25); break;
@@ -173,6 +175,7 @@ function buildHUD() {
   });
   $('needs').innerHTML = NEED_DEFS.map(([k, i, n]) => `<div class="stat"><span>${i}</span><span>${n}</span><div class="bar"><i id="bar-${k}"></i></div><em id="val-${k}"></em></div>`).join('') +
     `<div class="stat"><span>💗</span><span>Bond</span><div class="bar"><i id="bar-bond" class="bond"></i></div><em id="val-bond"></em></div>` +
+    `<div class="stat" title="How badly the cat needs the litter box"><span>🚽</span><span>Bathroom</span><div class="bar"><i id="bar-urge" class="stress"></i></div><em id="val-urge"></em></div>` +
     `<div class="stat"><span>😰</span><span>Stress</span><div class="bar"><i id="bar-stress" class="stress"></i></div><em id="val-stress"></em></div>`;
   document.querySelectorAll('.tab').forEach(b => b.addEventListener('click', () => { activeTab = b.dataset.tab; renderPanel(); }));
   document.querySelectorAll('[data-speed]').forEach(b => b.addEventListener('click', () => { speed = +b.dataset.speed; renderButtons(); }));
@@ -197,7 +200,7 @@ function renderButtons() {
   set('lamp', S.lamp);
   set('wet', false, S.coins < VPC.PRICES.wet);
   set('catnip', false, S.coins < VPC.PRICES.catnip);
-  set('scoop', S.poops >= 2, false);
+  set('scoop', sim.litterDirt() >= 2, false);
   const tb = document.querySelector('[data-tool="treat"]'); if (tb) tb.disabled = S.coins < VPC.PRICES.treat;
 }
 function barCls(v, inv) { if (inv) v = 100 - v; return v < 25 ? 'low' : v < 55 ? 'mid' : ''; }
@@ -216,6 +219,7 @@ function renderHUD() {
   const N = S.needs;
   for (const [k] of NEED_DEFS) { const v = Math.round(N[k]); const b = $('bar-' + k); b.style.width = v + '%'; b.className = barCls(v); $('val-' + k).textContent = v; }
   $('bar-bond').style.width = S.bond + '%'; $('val-bond').textContent = Math.round(S.bond);
+  const urge = Math.round(sim.bathroomUrge()); $('bar-urge').style.width = urge + '%'; $('bar-urge').className = 'stress ' + barCls(urge, true); $('val-urge').textContent = urge;
   $('bar-stress').style.width = S.stress + '%'; $('bar-stress').className = 'stress ' + barCls(S.stress, true); $('val-stress').textContent = Math.round(S.stress);
   const [emo, mood] = sim.mood();
   $('moodEmoji').textContent = emo; $('moodText').textContent = mood;
@@ -246,7 +250,7 @@ function renderPanel(soft) {
       html += `<li><span>${VPC.ZONE_LABEL[z]}</span><span>${verdict}</span></li>`;
     }
     html += '</ul>';
-    html += `<h4>Stats</h4><div class="muted small">Dot catches: ${S.stats.catches} · Pets: ${S.stats.pets} · Gifts: ${S.stats.gifts} · Meals: ${S.stats.meals}${S.sofaScratches ? ` · Sofa scratches: ${S.sofaScratches}` : ''}</div>`;
+    html += `<h4>Stats</h4><div class="muted small">Dot catches: ${S.stats.catches} · Pets: ${S.stats.pets} · Gifts: ${S.stats.gifts} · Meals: ${S.stats.meals} · Pees: ${S.stats.pees || 0} · Poops: ${S.stats.poops || 0}${S.stats.accidents ? ` · Accidents: ${S.stats.accidents}` : ''}${S.sofaScratches ? ` · Sofa scratches: ${S.sofaScratches}` : ''}</div>`;
   } else {
     html = '<ul class="log">' + S.log.slice(0, 40).map(e => `<li><time>${fmtLogTime(e.t)}</time>${esc(e.m)}</li>`).join('') + '</ul>';
   }
@@ -270,9 +274,11 @@ function refillWater() { if (!needCat()) return; sim.S.water = 100; world.setWat
 function scoop() {
   if (!needCat()) return;
   const S = sim.S;
-  if (!S.poops) return toast('The litter box is already clean.');
-  S.poops = 0; world.setPoops(0); Snd.play('sweep'); toast('Litter box scooped. 🧹');
-  sim.log('You scooped the litter box.');
+  if (!S.poops && !S.clumps && !S.uncovered) return toast('The litter box is already clean.');
+  const what = [S.poops ? `${S.poops} poop${S.poops > 1 ? 's' : ''}` : '', S.clumps ? `${S.clumps} pee clump${S.clumps > 1 ? 's' : ''}` : ''].filter(Boolean).join(' and ');
+  S.poops = 0; S.clumps = 0; S.uncovered = false;
+  world.setLitter(0, 0); sim.updateStink(); Snd.play('sweep'); toast(`Litter box scooped (${what}). 🧹`);
+  sim.log(`You scooped the litter box: ${what}.`);
 }
 function catnip() { if (!needCat()) return; if (sim.act && ['carried', 'bath'].includes(sim.act.name)) return; if (!spend(VPC.PRICES.catnip)) return; sim.catnip(); sim.log(`You sprinkled catnip on the rug. ${sim.S.name} is... affected.`); }
 function bath() { if (!needCat()) return; if (gesture && gesture.type === 'carry') endCarry(true); sim.bath(); }
@@ -282,9 +288,9 @@ function cleanMess(m) {
   const i = S.messes.findIndex(x => x.id === m.id); if (i < 0) return;
   S.messes.splice(i, 1);
   if (m.type === 'shards') { S.vaseBroken = false; world.setVase(false); sim.log('You swept up the vase and glued it back together. For now.'); }
-  else sim.log(m.type === 'hairball' ? 'You cleaned up the hairball.' : 'You cleaned up the accident.');
+  else sim.log({ hairball: 'You cleaned up the hairball.', puddle: 'You cleaned up the pee. Enzyme cleaner, so it doesn\u2019t smell like a toilet to the cat.', poop: 'You picked up the poop. Lovely.' }[m.type] || 'You cleaned up the mess.');
   S.stress = Math.max(0, S.stress - 3);
-  world.syncMesses(S.messes); Snd.play('sweep');
+  world.syncMesses(S.messes); sim.updateStink(); Snd.play('sweep');
 }
 
 /* ================= Laser + wand objects ================= */

@@ -13,7 +13,8 @@ If the game can't start, for example because 3D graphics (WebGL) are turned off 
 - **Needs:** food, water, energy, fun, hygiene and social, plus bond, stress and a hidden bladder.
 - **Personality:** two traits per cat (Playful, Lazy, Cuddly, Aloof, Foodie, Mischievous, Vocal, Tidy, Curious). Each cat also has its own hidden petting preferences that you discover by trying them (Cat tab).
 - **Day/night cycle:** 1 real second = 1 game minute at 1×. You can pause or run at 4× or 15×. Real sunlight comes through the window, so the sunbeam moves across the floor during the day and the cat seeks it out. At night you can switch on the lamp.
-- **Consequences:** a full litter box leads to accidents. Skipped brushing leads to hairballs. A neglected cat loses bond and gains stress. There's a daily recap with an allowance based on how the day went.
+- **Bathroom habits:** separate bladder and bowel urges (drinking fills one, eating the other). The cat sniffs the box, digs, turns around, squats (a quick pee or a longer hunched poop), then buries it, unless it can't be bothered. Some cats get post-poop zoomies. Pee clumps and poops pile up in the box until you scoop them, and smell wisps rise from a dirty box or anything left on the floor.
+- **Consequences:** a dirty litter box leads to accidents: pee on the rug or even the bed, poop right next to the box. Very stressed cats sometimes go outside the box even when it's clean. Skipped brushing leads to hairballs. A neglected cat loses bond and gains stress. There's a daily recap with an allowance based on how the day went.
 - **Growth:** kitten → junior → adult, and the model grows with it.
 - **Persistence:** saves in the browser. Time passes gently while you're away, and the journal tells you what happened. A cat from the earlier 2D prototype is carried over automatically.
 
