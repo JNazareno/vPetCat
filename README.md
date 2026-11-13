@@ -1,6 +1,10 @@
 # Whisker Room: 3D cat simulator
 
-A browser-based 3D virtual cat simulator. Open `cat-pet/index.html` in any modern browser on desktop or phone. There's no build step and no internet needed: three.js is bundled in `cat-pet/vendor/`.
+A browser-based 3D virtual cat simulator.
+
+**To play:** open `cat-pet/index.html` in a web browser (Chrome, Safari, Firefox or Edge) on desktop or phone. It's a single self-contained file, so you can download just that file and it still works offline. Don't use a file *preview* (GitHub's code view or a phone's file viewer); those show the page without running it.
+
+If the game can't start, for example because 3D graphics (WebGL) are turned off in the browser, the page says why instead of staying blank.
 
 ## The simulation
 - **A cat with its own life.** A utility-based AI weighs the cat's needs, personality, time of day and surroundings. It eats, drinks, uses the litter box, naps (in its bed, on the sofa, in the box, on the cat tree, or in the sunbeam), grooms, scratches, explores, watches birds at the window, plays with toys, asks for attention, brings you gifts, gets the zoomies at night, and knocks the vase off the shelf while looking right at you.
@@ -25,13 +29,19 @@ Body language matters: a lashing tail and flattened ears mean the cat is getting
 Camera: drag empty space to orbit, scroll or pinch to zoom, double-click the cat to follow it. In laser/wand mode, right-drag or two-finger drag orbits.
 
 ## Code layout
-Everything lives in `cat-pet/`:
+The editable sources live in `cat-pet/src/`. `cat-pet/index.html` is generated from them, so after changing anything in `src/`, rebuild it with:
 
-- `js/world.js`: room, furniture, lighting and sun, outside scenery, toy/treat/vase physics, camera, raycasting
-- `js/cat.js`: procedural cat model (coat patterns painted into vertex colours), pose blending, gait, tail, blinking, petting zones
-- `js/brain.js`: needs, utility AI, activities written as generators, player interactions, save/load and offline catch-up
-- `js/ui.js`: HUD, tools and input (pet, carry, throw, laser, wand), synthesized sound (purring, meows, hisses...), main loop
+```
+python3 cat-pet/build.py
+```
+
+You can also open `cat-pet/src/index.html` directly while developing.
+
+- `src/js/world.js`: room, furniture, lighting and sun, outside scenery, toy/treat/vase physics, camera, raycasting
+- `src/js/cat.js`: procedural cat model (coat patterns painted into vertex colours), pose blending, gait, tail, blinking, petting zones
+- `src/js/brain.js`: needs, utility AI, activities written as generators, player interactions, save/load and offline catch-up
+- `src/js/ui.js`: HUD, tools and input (pet, carry, throw, laser, wand), synthesized sound (purring, meows, hisses...), main loop
 
 Debug handles in the console: `whisker.sim`, `whisker.world`, `whisker.setSpeed(n)`.
 
-three.js r159 (MIT licence, see `cat-pet/vendor/LICENSE-three.txt`) is loaded as a classic script so the page also works straight from `file://`.
+three.js r159 (MIT licence, see `cat-pet/src/vendor/LICENSE-three.txt`) is used as a classic script and inlined into the built page, so it works straight from `file://`.

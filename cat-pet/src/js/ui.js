@@ -85,7 +85,14 @@ const Snd = {
 
 /* ================= Setup ================= */
 const canvas = $('scene');
-const world = new WR.World(canvas);
+let world;
+try { world = new WR.World(canvas); }
+catch (e) {
+  console.error(e);
+  window.WR_bootFail && window.WR_bootFail('Your browser couldn\u2019t start 3D graphics (WebGL). Turn on hardware acceleration in your browser settings, update your browser, or try another one.');
+  window.WR_started = true;
+  throw e;
+}
 const model = new WR.CatModel('orange', 1);
 world.scene.add(model.group);
 const hooks = {
@@ -664,6 +671,8 @@ if (loaded) {
   else sim.save();
 } else openAdopt();
 requestAnimationFrame(frame);
+window.WR_started = true;
+{ const bootEl = $('boot'); if (bootEl) bootEl.remove(); }
 
 window.whisker = { sim, world, model, setSpeed: v => { speed = v; renderButtons(); }, setTool };
 })();
