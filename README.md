@@ -1,6 +1,6 @@
 # Whisker Room: 3D cat simulator
 
-A browser-based 3D virtual cat simulator. Open `index.html` in any modern browser on desktop or phone. There's no build step and no internet needed: three.js is bundled in `vendor/`.
+A browser-based 3D virtual cat simulator. Open `cat-pet/index.html` in any modern browser on desktop or phone. There's no build step and no internet needed: three.js is bundled in `cat-pet/vendor/`.
 
 ## The simulation
 - **A cat with its own life.** A utility-based AI weighs the cat's needs, personality, time of day and surroundings. It eats, drinks, uses the litter box, naps (in its bed, on the sofa, in the box, on the cat tree, or in the sunbeam), grooms, scratches, explores, watches birds at the window, plays with toys, asks for attention, brings you gifts, gets the zoomies at night, and knocks the vase off the shelf while looking right at you.
@@ -25,6 +25,8 @@ Body language matters: a lashing tail and flattened ears mean the cat is getting
 Camera: drag empty space to orbit, scroll or pinch to zoom, double-click the cat to follow it. In laser/wand mode, right-drag or two-finger drag orbits.
 
 ## Code layout
+Everything lives in `cat-pet/`:
+
 - `js/world.js`: room, furniture, lighting and sun, outside scenery, toy/treat/vase physics, camera, raycasting
 - `js/cat.js`: procedural cat model (coat patterns painted into vertex colours), pose blending, gait, tail, blinking, petting zones
 - `js/brain.js`: needs, utility AI, activities written as generators, player interactions, save/load and offline catch-up
@@ -32,4 +34,4 @@ Camera: drag empty space to orbit, scroll or pinch to zoom, double-click the cat
 
 Debug handles in the console: `whisker.sim`, `whisker.world`, `whisker.setSpeed(n)`.
 
-three.js r159 (MIT licence, see `vendor/LICENSE-three.txt`) is loaded as a classic script so the page also works straight from `file://`.
+three.js r159 (MIT licence, see `cat-pet/vendor/LICENSE-three.txt`) is loaded as a classic script so the page also works straight from `file://`.
