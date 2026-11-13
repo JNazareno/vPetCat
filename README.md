@@ -2,7 +2,7 @@
 
 A browser-based 3D virtual cat simulator.
 
-**Play online:** https://jnazareno.github.io/vPetCat/ (once GitHub Pages is enabled for this repo).
+**Play online:** https://jnazareno.github.io/vPetCat/
 
 **To play from a file:** open `cat-pet/index.html` in a web browser (Chrome, Safari, Firefox or Edge) on desktop or phone. It's a single self-contained file, so you can download just that file and it still works offline. Don't use a file *preview* (GitHub's code view or a phone's file viewer); those show the page without running it.
 
