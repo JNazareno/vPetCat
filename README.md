@@ -2,7 +2,9 @@
 
 A browser-based 3D virtual cat simulator.
 
-**To play:** open `cat-pet/index.html` in a web browser (Chrome, Safari, Firefox or Edge) on desktop or phone. It's a single self-contained file, so you can download just that file and it still works offline. Don't use a file *preview* (GitHub's code view or a phone's file viewer); those show the page without running it.
+**Play online:** https://jnazareno.github.io/vPetCat/ (once GitHub Pages is enabled for this repo).
+
+**To play from a file:** open `cat-pet/index.html` in a web browser (Chrome, Safari, Firefox or Edge) on desktop or phone. It's a single self-contained file, so you can download just that file and it still works offline. Don't use a file *preview* (GitHub's code view or a phone's file viewer); those show the page without running it.
 
 If the game can't start, for example because 3D graphics (WebGL) are turned off in the browser, the page says why instead of staying blank.
 
