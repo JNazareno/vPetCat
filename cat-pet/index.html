@@ -2,987 +2,212 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Whisker Room</title>
 <style>
 :root{
-  --bg:#f6efe6; --panel:#fffaf3; --ink:#3a2f2a; --muted:#8a7b70; --line:#e7dccd;
-  --accent:#e0794a; --accent-ink:#fff; --good:#5fae6e; --warn:#e3b341; --bad:#d9534f;
-  --wall:#f3e3cf; --wall2:#ead4b8; --floor:#c99a6b; --floor2:#b8875a;
+  --glass:rgba(255,250,243,.88); --ink:#3a2f2a; --muted:#857669; --line:rgba(120,95,70,.18);
+  --accent:#e0794a; --accent-ink:#fff; --good:#5fae6e; --warn:#e3b341; --bad:#d9534f; --bg:#e9dcc9;
 }
 @media (prefers-color-scheme: dark){
-  :root:not([data-theme="light"]){
-    --bg:#1d1916; --panel:#2a2420; --ink:#f1e7dc; --muted:#a8998c; --line:#40372f;
-    --accent:#f08a5a; --wall:#5b4a3d; --wall2:#4e3f34; --floor:#6e5139; --floor2:#5d432f;
-  }
+  :root:not([data-theme="light"]){ --glass:rgba(36,31,27,.88); --ink:#f1e7dc; --muted:#ab9c8f; --line:rgba(255,235,210,.12); --accent:#f08a5a; --bg:#1b1714; }
 }
-:root[data-theme="dark"]{
-  --bg:#1d1916; --panel:#2a2420; --ink:#f1e7dc; --muted:#a8998c; --line:#40372f;
-  --accent:#f08a5a; --wall:#5b4a3d; --wall2:#4e3f34; --floor:#6e5139; --floor2:#5d432f;
-}
+:root[data-theme="dark"]{ --glass:rgba(36,31,27,.88); --ink:#f1e7dc; --muted:#ab9c8f; --line:rgba(255,235,210,.12); --accent:#f08a5a; --bg:#1b1714; }
 *{box-sizing:border-box}
-html,body{margin:0}
-body{background:var(--bg);color:var(--ink);font:15px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-tap-highlight-color:transparent}
-.app{max-width:960px;margin:0 auto;padding:16px}
-header.top{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;justify-content:space-between;margin-bottom:12px}
-.who h1{margin:0;font-size:22px;display:flex;align-items:center;gap:8px}
-.who .sub{color:var(--muted);font-size:13px}
-.chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
-.chip{font-size:12px;padding:2px 8px;border-radius:999px;background:var(--panel);border:1px solid var(--line)}
-.hud{display:flex;gap:10px;align-items:center}
-.pill{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:6px 12px;font-weight:600;white-space:nowrap}
-.iconbtn{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:6px 10px;cursor:pointer;color:var(--ink);font-size:16px}
+html,body{margin:0;height:100%;overflow:hidden}
+body{background:var(--bg);color:var(--ink);font:14px/1.35 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
+#scene{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none;outline:none}
+#scene[data-tool="laser"],#scene[data-tool="wand"]{cursor:crosshair}
+#scene[data-tool="treat"]{cursor:copy}
+body.ouch #scene{filter:saturate(1.6) brightness(1.1)}
 
-/* ---------- Room ---------- */
-.room{position:relative;height:380px;border-radius:18px;overflow:hidden;border:1px solid var(--line);
-  background:linear-gradient(var(--wall),var(--wall2) 68%,var(--floor) 68%,var(--floor2));user-select:none;touch-action:none}
-.room.laser-mode{cursor:none}
-.room .baseboard{position:absolute;left:0;right:0;top:68%;height:8px;background:rgba(0,0,0,.08)}
-.window{position:absolute;left:5%;top:9%;width:21%;height:38%;border:8px solid #fff;border-radius:6px;box-shadow:0 2px 0 rgba(0,0,0,.08);overflow:hidden}
-.window .sky{position:absolute;inset:0;transition:background 2s}
-.window .celestial{position:absolute;right:12%;top:12%;font-size:26px}
-.window:after{content:"";position:absolute;left:50%;top:0;bottom:0;width:6px;margin-left:-3px;background:#fff}
-.frame{position:absolute;left:33%;top:14%;width:9%;height:20%;background:#fff;border:5px solid #9c7a58;border-radius:4px;display:grid;place-items:center;font-size:24px}
-.shelf{position:absolute;left:58%;top:34%;width:16%;height:8px;background:#9c7a58;border-radius:3px;box-shadow:0 3px 0 rgba(0,0,0,.12)}
-.vase{position:absolute;left:66%;top:calc(34% - 34px);font-size:30px;transform:translateX(-50%);transition:opacity .3s}
-.vase.falling{animation:fall .7s ease-in forwards}
-@keyframes fall{0%{transform:translateX(-50%) rotate(0)}20%{transform:translateX(-30%) rotate(25deg)}100%{transform:translate(-10%,190px) rotate(120deg);opacity:.2}}
-.plant{position:absolute;right:2%;bottom:30%;font-size:44px}
-.furn{position:absolute;bottom:9%;transform:translateX(-50%)}
-.bed{left:12%;width:120px;height:34px;border-radius:60px 60px 20px 20px;background:#7b9bd1;box-shadow:inset 0 -8px 0 rgba(0,0,0,.15)}
-.bed:after{content:"";position:absolute;left:12px;right:12px;top:8px;height:16px;border-radius:40px;background:#a9c0e6}
-.bowl{left:35%;width:58px;height:22px;background:#d75f5f;border-radius:4px 4px 28px 28px;box-shadow:inset 0 -5px 0 rgba(0,0,0,.15)}
-.bowl .kibble{position:absolute;left:6px;right:6px;bottom:100%;height:0;background:radial-gradient(circle at 30% 60%,#8b5a2b 3px,transparent 4px) 0 0/9px 7px,#a0703f;border-radius:20px 20px 0 0;transition:height .3s}
-.bowl .lbl{position:absolute;top:100%;left:50%;transform:translateX(-50%);font-size:11px;color:#fff;opacity:.85;white-space:nowrap}
-.litter{left:86%;width:96px;height:36px;background:#6fa58b;border-radius:6px;box-shadow:inset 0 -6px 0 rgba(0,0,0,.15);display:flex;align-items:flex-start;justify-content:center;gap:2px;padding-top:2px;font-size:14px}
-.litter:before{content:"";position:absolute;left:6px;right:6px;top:4px;height:10px;background:#e9dfc6;border-radius:3px;z-index:0}
-.litter span{position:relative;z-index:1;margin-top:-8px}
-.post{position:absolute;left:50%;bottom:9%;width:18px;height:120px;background:repeating-linear-gradient(0deg,#cfa86b 0 6px,#b98f52 6px 9px);border-radius:4px;transform:translateX(-50%)}
-.post:before{content:"";position:absolute;left:-14px;right:-14px;bottom:-6px;height:10px;background:#8c6a45;border-radius:4px}
-.post:after{content:"";position:absolute;left:-10px;right:-10px;top:-8px;height:10px;background:#8c6a45;border-radius:4px}
-.night{position:absolute;inset:0;background:rgba(12,14,40,.55);pointer-events:none;opacity:0;transition:opacity .6s}
-.room.dark .night{opacity:1}
-.mess{position:absolute;bottom:6%;transform:translateX(-50%);font-size:24px;cursor:pointer;background:none;border:0;padding:4px;filter:drop-shadow(0 2px 1px rgba(0,0,0,.2));animation:pop .3s}
-.mess:hover{transform:translateX(-50%) scale(1.15)}
-@keyframes pop{from{transform:translateX(-50%) scale(0)}}
+.card{background:var(--glass);border:1px solid var(--line);border-radius:16px;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);box-shadow:0 4px 18px rgba(0,0,0,.12)}
+.hud-top{position:fixed;top:max(10px,env(safe-area-inset-top));left:10px;right:10px;display:flex;justify-content:space-between;gap:10px;pointer-events:none;align-items:flex-start;z-index:10}
+.hud-top>*{pointer-events:auto}
+body:not(.playing) .hud-top,body:not(.playing) .bottom{display:none}
+.who{padding:10px 14px;max-width:min(430px,60vw)}
+.who h1{margin:0;font-size:19px;display:flex;align-items:center;gap:6px}
+.who .sub{color:var(--muted);font-size:12px;margin-top:1px}
+.who .thought{font-size:13px;margin-top:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.clockbox{display:flex;flex-direction:column;gap:6px;align-items:flex-end}
+.rowc{display:flex;gap:6px;align-items:center;padding:6px;flex-wrap:wrap;justify-content:flex-end}
+.pill{font-weight:600;padding:4px 8px;white-space:nowrap}
+.ib{border:1px solid var(--line);background:transparent;color:var(--ink);border-radius:10px;padding:4px 8px;font:inherit;cursor:pointer;min-width:32px}
+.ib.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.speed{display:flex;gap:3px}
 
-/* ---------- Cat ---------- */
-.cat{position:absolute;bottom:7%;width:var(--catw,130px);transform:translateX(-50%);z-index:5;cursor:grab;touch-action:none}
-.cat:active{cursor:grabbing}
-.cat .bob,.cat .flip{width:100%}
-.cat .flip{transition:transform .2s}
-.cat.dir-left .flip{transform:scaleX(-1)}
-.catsvg{display:block;width:100%;height:auto;overflow:visible;transition:transform .4s}
-.catsvg g{transform-box:fill-box;transform-origin:center}
-.catsvg .tail{transform-origin:left bottom;animation:tail 3s ease-in-out infinite}
-@keyframes tail{0%,100%{transform:rotate(-6deg)}50%{transform:rotate(10deg)}}
-.cat.annoyed .tail{animation:lash .35s ease-in-out infinite}
-@keyframes lash{0%,100%{transform:rotate(-22deg)}50%{transform:rotate(24deg)}}
-.catsvg .eyes{animation:blink 5s infinite}
-@keyframes blink{0%,94%,100%{transform:scaleY(1)}96%{transform:scaleY(.1)}}
-.eye-closed,.eye-happy,.brows,.mouth-open,.zz{display:none}
-.cat.sleeping .eye-open,.cat.happy .eye-open,.cat.grooming .eye-open{display:none}
-.cat.sleeping .eye-closed,.cat.grooming .eye-closed{display:inline}
-.cat.happy:not(.sleeping) .eye-happy{display:inline}
-.cat.angry .brows,.cat.angry .mouth-open,.cat.meow .mouth-open{display:inline}
-.cat.angry .ear-l{transform:rotate(-28deg)}
-.cat.angry .ear-r{transform:rotate(28deg)}
-.cat.chasing .pupil{transform:scaleX(2.6)}
-.cat.sleeping .catsvg{transform:scaleY(.8) translateY(12%)}
-.cat.sleeping .head{transform:translate(-4px,22px) rotate(-10deg)}
-.cat.sleeping .tail{animation:none;transform:rotate(60deg)}
-.cat.eating .head{transform:translateY(26px) rotate(4deg)}
-.cat.grooming .paw-l{transform:translate(8px,-78px)}
-.cat.grooming .head{animation:lick .5s ease-in-out infinite}
-@keyframes lick{50%{transform:rotate(-6deg) translateY(3px)}}
-.cat.walking .bob{animation:bob .32s ease-in-out infinite}
-@keyframes bob{50%{transform:translateY(-5px)}}
-.cat.pounce .bob{animation:jump .6s ease-out}
-@keyframes jump{0%{transform:translateY(0) scaleY(.85)}40%{transform:translateY(-70px) scaleY(1.05)}100%{transform:translateY(0)}}
-.cat.highjump .bob{animation:hjump .9s ease-in-out}
-@keyframes hjump{0%{transform:translateY(0) scaleY(.85)}45%,60%{transform:translateY(-150px)}100%{transform:translateY(0)}}
-.cat.purr .bob{animation:purr .12s linear infinite}
-@keyframes purr{50%{transform:translateX(.7px)}}
-.ear-l,.ear-r{transition:transform .2s}
-.ear-l{transform-origin:right bottom}.ear-r{transform-origin:left bottom}
-
-.bubble{position:absolute;z-index:8;transform:translate(-50%,-100%);background:#fff;color:#3a2f2a;border-radius:14px;padding:5px 10px;font-size:14px;font-weight:600;white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,.15);pointer-events:none;opacity:0;transition:opacity .2s}
-.bubble.show{opacity:1}
-.bubble:after{content:"";position:absolute;left:50%;top:100%;margin-left:-6px;border:6px solid transparent;border-top-color:#fff}
-.fx{position:absolute;z-index:9;pointer-events:none;font-weight:700;transform:translate(-50%,-50%);animation:rise 1.4s ease-out forwards;white-space:nowrap;text-shadow:0 1px 0 rgba(255,255,255,.6)}
-@keyframes rise{to{transform:translate(-50%,-160%);opacity:0}}
-.laser{position:absolute;z-index:7;width:12px;height:12px;margin:-6px 0 0 -6px;border-radius:50%;background:#ff2a2a;box-shadow:0 0 10px 4px rgba(255,40,40,.7);pointer-events:none;display:none}
-.room.laser-mode .laser.on{display:block}
-
-/* ---------- Panels ---------- */
-.grid{display:grid;grid-template-columns:1.1fr 1fr;gap:14px;margin-top:14px}
-@media (max-width:720px){.grid{grid-template-columns:1fr}.room{height:320px}}
-.panel{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px}
-.panel h2{margin:0 0 10px;font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
-.stat{display:grid;grid-template-columns:24px 78px 1fr 34px;align-items:center;gap:8px;margin:7px 0}
-.stat .name{font-size:13px}
-.bar{height:12px;background:var(--line);border-radius:999px;overflow:hidden}
-.bar i{display:block;height:100%;width:50%;border-radius:999px;background:var(--good);transition:width .3s,background .3s}
+.panel{position:fixed;right:10px;top:132px;width:300px;max-height:calc(100% - 250px);overflow:auto;padding:10px 12px;z-index:9;display:none}
+body.panel-open.playing .panel{display:block}
+.tabs{display:flex;gap:4px;margin-bottom:8px}
+.tab{flex:1;border:1px solid var(--line);background:transparent;color:var(--ink);border-radius:9px;padding:5px;font:inherit;font-size:12px;cursor:pointer}
+.tab.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.stat{display:grid;grid-template-columns:20px 54px 1fr 26px;gap:6px;align-items:center;margin:6px 0;font-size:12.5px}
+.stat em{font-style:normal;color:var(--muted);font-size:11px;text-align:right;font-variant-numeric:tabular-nums}
+.bar{height:9px;background:var(--line);border-radius:99px;overflow:hidden}
+.bar i{display:block;height:100%;width:50%;background:var(--good);border-radius:99px;transition:width .3s,background .3s}
 .bar i.mid{background:var(--warn)}.bar i.low{background:var(--bad)}.bar i.bond{background:#e57aa5}
-.stat .val{font-size:12px;color:var(--muted);text-align:right;font-variant-numeric:tabular-nums}
-.actions{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-.actions h3{grid-column:1/-1;margin:6px 0 0;font-size:12px;color:var(--muted);font-weight:600}
-.act{display:flex;flex-direction:column;align-items:center;gap:2px;padding:9px 4px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);cursor:pointer;font:inherit;font-size:13px}
-.act b{font-size:22px;line-height:1}
-.act small{color:var(--muted);font-size:11px}
-.act:hover{border-color:var(--accent)}
-.act:disabled{opacity:.45;cursor:not-allowed}
-.act.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
-.act.on small{color:var(--accent-ink)}
-.tip{font-size:13px;color:var(--muted);margin:10px 0 0}
-.log{list-style:none;margin:0;padding:0;font-size:13px;max-height:190px;overflow:auto}
+.bar i.stress{background:#9aa0b5}.bar i.stress.mid{background:var(--warn)}.bar i.stress.low{background:var(--bad)}
+.traits div{margin-bottom:6px;font-size:12.5px}
+.panel h4{margin:10px 0 6px;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.prefs{list-style:none;padding:0;margin:0;font-size:12.5px}
+.prefs li{display:flex;justify-content:space-between;gap:8px;padding:3px 0;border-bottom:1px dashed var(--line)}
+.muted{color:var(--muted)} .small{font-size:12px}
+.log{list-style:none;padding:0;margin:0;font-size:12.5px}
 .log li{padding:5px 0;border-bottom:1px dashed var(--line)}
-.log li:last-child{border:0}
-.log time{color:var(--muted);font-size:11px;margin-right:6px;font-variant-numeric:tabular-nums}
-.mood{font-size:13px;color:var(--muted)}
+.log time{color:var(--muted);font-size:10.5px;margin-right:6px;font-variant-numeric:tabular-nums}
 
-/* ---------- Modal ---------- */
-.modal{position:fixed;inset:0;background:rgba(20,14,10,.55);display:none;place-items:center;z-index:50;padding:16px}
-.modal.open{display:grid}
-.card{background:var(--panel);border-radius:20px;padding:20px;max-width:440px;width:100%;border:1px solid var(--line);max-height:92vh;overflow:auto}
-.card h2{margin:0 0 4px}
-.card p{color:var(--muted);margin:0 0 12px}
-.preview{width:150px;margin:0 auto 8px}
-.swatches{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:8px 0 12px}
-.swatch{border:2px solid var(--line);border-radius:12px;background:var(--bg);color:var(--ink);padding:6px;cursor:pointer;font:inherit;font-size:12px;display:flex;align-items:center;gap:6px}
-.swatch .dot{width:16px;height:16px;border-radius:50%;border:1px solid rgba(0,0,0,.2);flex:none}
+.bottom{position:fixed;left:10px;right:10px;bottom:max(10px,env(safe-area-inset-bottom));display:flex;flex-direction:column;align-items:center;gap:6px;z-index:10;pointer-events:none}
+.bottom>*{pointer-events:auto}
+#hint{font-size:12px;color:var(--muted);padding:5px 12px;max-width:min(760px,100%);text-align:center}
+.toolbar{display:flex;gap:4px;padding:6px;overflow-x:auto;max-width:100%;scrollbar-width:thin}
+.tbtn{flex:none;display:flex;flex-direction:column;align-items:center;gap:1px;min-width:54px;padding:5px 6px;border-radius:11px;border:1px solid transparent;background:transparent;color:var(--ink);font:inherit;font-size:11px;cursor:pointer}
+.tbtn b{font-size:20px;line-height:1.1}
+.tbtn:hover{border-color:var(--line)}
+.tbtn.on{background:var(--accent);color:var(--accent-ink)}
+.tbtn:disabled{opacity:.4;cursor:not-allowed}
+.sep{flex:none;width:1px;background:var(--line);margin:4px 3px}
+
+#bubble{position:fixed;z-index:12;transform:translate(-50%,-100%);background:#fff;color:#3a2f2a;border-radius:14px;padding:5px 11px;font-weight:600;font-size:13.5px;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.18);pointer-events:none;opacity:0;transition:opacity .2s}
+#bubble.show{opacity:1}
+#bubble:after{content:"";position:absolute;left:50%;top:100%;margin-left:-6px;border:6px solid transparent;border-top-color:#fff}
+.float{position:fixed;z-index:12;pointer-events:none;font-weight:700;font-size:15px;transform:translate(-50%,-50%);animation:rise 1.5s ease-out forwards;text-shadow:0 1px 2px rgba(255,255,255,.8);white-space:nowrap}
+@keyframes rise{to{transform:translate(-50%,-260%);opacity:0}}
+#tip{position:fixed;z-index:13;transform:translate(14px,14px);background:rgba(30,24,20,.9);color:#fff;padding:5px 9px;border-radius:8px;font-size:12px;pointer-events:none;opacity:0;transition:opacity .12s;max-width:280px}
+#tip.show{opacity:1}
+#toast{position:fixed;left:50%;bottom:150px;transform:translateX(-50%);z-index:14;background:rgba(30,24,20,.92);color:#fff;padding:8px 14px;border-radius:12px;font-size:13px;opacity:0;transition:opacity .25s;pointer-events:none;max-width:min(560px,calc(100% - 32px));text-align:center}
+#toast.show{opacity:1}
+#panelToggle{display:none}
+
+.modal{position:fixed;inset:0;display:none;z-index:30;padding:16px;pointer-events:none}
+.modal.open{display:flex}
+.modal.center{background:rgba(20,14,10,.45);align-items:center;justify-content:center;pointer-events:auto}
+.modal.side{justify-content:flex-end;align-items:center}
+.modal .card{pointer-events:auto;padding:18px;width:100%;max-width:400px;max-height:calc(100% - 20px);overflow:auto;background:var(--glass)}
+.modal h2{margin:0 0 4px;font-size:20px}
+.modal p{color:var(--muted);margin:0 0 12px}
+.swatches{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin:8px 0 12px}
+.swatch{border:2px solid var(--line);border-radius:12px;background:transparent;color:var(--ink);padding:6px 8px;cursor:pointer;font:inherit;font-size:12.5px;display:flex;align-items:center;gap:8px}
+.swatch .dot{width:18px;height:18px;border-radius:50%;border:1px solid rgba(0,0,0,.25);flex:none}
 .swatch.sel{border-color:var(--accent)}
+.traitbox{border:1px solid var(--line);border-radius:12px;padding:8px 10px;margin-bottom:12px;font-size:12.5px}
+.traitbox div+div{margin-top:4px}
 .field{display:flex;gap:8px;margin-bottom:12px}
-.field input{flex:1;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font:inherit}
-.btn{padding:10px 16px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font:inherit;font-weight:600;cursor:pointer}
+.field input{flex:1;min-width:0;padding:9px 11px;border-radius:10px;border:1px solid var(--line);background:transparent;color:var(--ink);font:inherit;user-select:text}
+.btn{padding:9px 15px;border-radius:10px;border:1px solid var(--line);background:transparent;color:var(--ink);font:inherit;font-weight:600;cursor:pointer}
 .btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
 .btn.danger{color:var(--bad)}
 .row{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
-.traitbox{background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:8px 10px;margin-bottom:12px;font-size:13px}
-.traitbox b{display:block}
 label.set{display:flex;justify-content:space-between;align-items:center;margin:10px 0;gap:10px}
-select{padding:6px 8px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font:inherit}
+select{padding:6px 8px;border-radius:8px;border:1px solid var(--line);background:transparent;color:var(--ink);font:inherit}
+select option{color:#222}
+.help ul{padding-left:18px;margin:0 0 12px}
+.help li{margin:5px 0}
+
+@media (max-width:720px){
+  .who{max-width:calc(100vw - 150px);padding:8px 10px}
+  .who h1{font-size:16px}
+  .who .thought{font-size:12px}
+  .rowc{padding:4px;gap:4px}
+  .ib{padding:3px 6px;min-width:28px}
+  .speed .ib{min-width:26px;padding:3px 4px;font-size:12px}
+  #panelToggle{display:inline-block}
+  .panel{left:10px;right:10px;width:auto;top:auto;bottom:130px;max-height:42vh}
+  #hint{display:none}
+  .tbtn{min-width:50px}
+  .modal.side{justify-content:center;align-items:flex-end}
+  .modal.side .card{max-height:58vh}
+  #toast{bottom:95px}
+}
 </style>
 </head>
 <body>
-<div class="app">
-  <header class="top">
-    <div class="who">
-      <h1><span id="catName">Kitty</span> <span id="moodEmoji">😺</span></h1>
-      <div class="sub"><span id="stage">Kitten</span> · <span id="age">0 wks</span> · <span class="mood" id="moodText">Content</span></div>
-      <div class="chips" id="traitChips"></div>
-    </div>
-    <div class="hud">
-      <div class="pill" title="Coins">🪙 <span id="coins">0</span></div>
-      <button class="iconbtn" id="settingsBtn" title="Settings" aria-label="Settings">⚙️</button>
-    </div>
-  </header>
+<canvas id="scene" tabindex="0" aria-label="3D room with your cat"></canvas>
 
-  <div class="room" id="room">
-    <div class="window"><div class="sky" id="sky"></div><div class="celestial" id="celestial">☀️</div></div>
-    <div class="frame">🐟</div>
-    <div class="shelf"></div>
-    <div class="vase" id="vase">🏺</div>
-    <div class="baseboard"></div>
-    <div class="plant">🪴</div>
-    <div class="post"></div>
-    <div class="furn bed" id="bed"></div>
-    <div class="furn bowl" id="bowl"><div class="kibble" id="kibble"></div><div class="lbl" id="bowlLbl"></div></div>
-    <div class="furn litter" id="litter"></div>
-    <div id="messes"></div>
-    <div class="cat" id="cat"><div class="bob"><div class="flip" id="catArt"></div></div></div>
-    <div class="bubble" id="bubble"></div>
-    <div class="laser" id="laser"></div>
-    <div class="night"></div>
+<div class="hud-top">
+  <div class="card who">
+    <h1><span id="moodEmoji">😺</span><span id="catName"></span></h1>
+    <div class="sub"><span id="stage"></span> · <span id="moodText"></span></div>
+    <div class="thought" id="thought"></div>
   </div>
-
-  <div class="grid">
-    <section class="panel">
-      <h2>Needs</h2>
-      <div id="stats"></div>
-      <p class="tip" id="tip">Press and stroke the cat to pet it. Watch the tail: if it starts lashing, stop before you get swatted.</p>
-    </section>
-    <section class="panel">
-      <h2>Care &amp; play</h2>
-      <div class="actions" id="actions"></div>
-    </section>
-    <section class="panel" style="grid-column:1/-1">
-      <h2>Journal</h2>
-      <ul class="log" id="log"></ul>
-    </section>
+  <div class="clockbox">
+    <div class="card rowc">
+      <span class="pill" id="clock">Day 1</span>
+      <span class="speed">
+        <button class="ib" data-speed="0" title="Pause">⏸</button>
+        <button class="ib" data-speed="1" title="Normal speed">1×</button>
+        <button class="ib" data-speed="4" title="Fast">4×</button>
+        <button class="ib" data-speed="15" title="Very fast">15×</button>
+      </span>
+    </div>
+    <div class="card rowc">
+      <span class="pill" title="Coins">🪙 <span id="coins">0</span></span>
+      <button class="ib" id="panelToggle" title="Needs and info">📊</button>
+      <button class="ib" id="soundBtn" title="Sound">🔊</button>
+      <button class="ib" id="helpBtn" title="How to play">?</button>
+      <button class="ib" id="settingsBtn" title="Settings">⚙️</button>
+    </div>
   </div>
 </div>
 
+<aside class="card panel" id="panel">
+  <div class="tabs"><button class="tab on" data-tab="needs">Needs</button><button class="tab" data-tab="cat">Cat</button><button class="tab" data-tab="journal">Journal</button></div>
+  <div id="needs"></div>
+  <div id="panelBody" hidden></div>
+</aside>
+
+<div class="bottom">
+  <div class="card" id="hint"></div>
+  <div class="card toolbar" id="tools"></div>
+</div>
+
+<div id="bubble"></div>
+<div id="fx"></div>
+<div id="tip"></div>
+<div id="toast"></div>
+
 <!-- Adoption -->
-<div class="modal" id="adopt">
+<div class="modal side" id="adopt">
   <div class="card">
     <h2>Adopt a cat</h2>
-    <p>Pick a coat and a name. Every cat has its own personality.</p>
-    <div class="preview" id="adoptPreview"></div>
+    <p>Pick a coat and a name. Every cat has its own personality and its own favourite (and least favourite) places to be petted.</p>
     <div class="swatches" id="swatches"></div>
     <div class="traitbox" id="adoptTraits"></div>
-    <div class="field"><input id="adoptName" maxlength="16" placeholder="Name" aria-label="Cat name"><button class="btn" id="rollBtn" title="Different personality">🎲</button></div>
-    <div class="row"><button class="btn primary" id="adoptBtn">Adopt</button></div>
+    <div class="field"><input id="adoptName" maxlength="16" placeholder="Name" aria-label="Cat name"><button class="btn" id="rollBtn" title="Roll a different personality">🎲</button></div>
+    <div class="row"><button class="btn primary" id="adoptBtn">Bring them home</button></div>
+  </div>
+</div>
+
+<!-- Help -->
+<div class="modal center help" id="help">
+  <div class="card">
+    <h2>How to care for your cat</h2>
+    <ul>
+      <li><b>Look around:</b> drag empty space to orbit, scroll or pinch to zoom. Double-click the cat to follow it.</li>
+      <li><b>Pet:</b> with ✋, stroke the cat. Each cat has favourite spots (chin, cheeks...). Find them in the <i>Cat</i> tab. Belly rubs are often a trap.</li>
+      <li><b>Read the signals:</b> a lashing tail and flattened ears mean stop, or you'll get swatted.</li>
+      <li><b>Pick up:</b> press and hold on the cat, then carry it. Drop it in the bed or on the sofa.</li>
+      <li><b>Play:</b> flick toys across the floor, use the 🔴 laser or the 🪶 feather wand. Catches earn 🪙.</li>
+      <li><b>Care:</b> click the bowls to refill them and the litter box to scoop it. A full box means accidents.</li>
+      <li><b>Time:</b> one real second is one game minute at 1×. The cat eats, naps in sunbeams, watches birds and lives its life on its own.</li>
+    </ul>
+    <div class="row"><button class="btn primary" data-close>Got it</button></div>
   </div>
 </div>
 
 <!-- Settings -->
-<div class="modal" id="settings">
+<div class="modal center" id="settings">
   <div class="card">
     <h2>Settings</h2>
-    <label class="set">Simulation speed <select id="speed"><option value="1">1× (normal)</option><option value="5">5×</option><option value="20">20× (testing)</option></select></label>
     <label class="set">Theme <select id="theme"><option value="">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label>
-    <p style="font-size:13px">Progress saves in this browser. Time keeps passing while you're away (up to 8 hours).</p>
-    <div class="row"><button class="btn danger" id="resetBtn">Rehome &amp; start over</button><button class="btn primary" id="closeSettings">Done</button></div>
+    <p style="font-size:13px">Progress saves in this browser. While you're away, time passes at a gentle pace (up to 8 game hours) and the journal tells you what happened.</p>
+    <div class="row"><button class="btn danger" id="resetBtn">Rehome &amp; start over</button><button class="btn primary" data-close>Done</button></div>
   </div>
 </div>
 
-<script>
-(() => {
-'use strict';
-const SAVE_KEY = 'whisker-room-v1';
-const $ = id => document.getElementById(id);
-const clamp = (v, a = 0, b = 100) => Math.max(a, Math.min(b, v));
-const rand = (a, b) => a + Math.random() * (b - a);
-const pick = arr => arr[Math.floor(Math.random() * arr.length)];
-
-/* ================= Data ================= */
-const COATS = {
-  orange: { name: 'Orange tabby', base: '#e8954a', dark: '#c0682a', light: '#f9dfbd', line: '#5a2e14', eye: '#7cb342', stripes: true },
-  grey:   { name: 'Grey tabby',   base: '#9ba1aa', dark: '#6a7079', light: '#e3e6ea', line: '#33363b', eye: '#e0b22f', stripes: true },
-  black:  { name: 'Black',        base: '#2c2c34', dark: '#18181d', light: '#3b3b45', line: '#9a9aa8', eye: '#f2c230' },
-  white:  { name: 'White',        base: '#f5f2ec', dark: '#dcd5ca', light: '#ffffff', line: '#5d5048', eye: '#4aa3df' },
-  tuxedo: { name: 'Tuxedo',       base: '#26262c', dark: '#121216', light: '#fbfbfb', line: '#555', eye: '#8bc34a', chest: true },
-  calico: { name: 'Calico',       base: '#f6efe3', dark: '#2f2622', light: '#ffffff', line: '#5d5048', eye: '#d79a2b', patches: '#e08a3c' },
-};
-const TRAITS = {
-  playful:     { label: 'Playful',     desc: 'Lives for the laser. Gets bored quickly.', fun: 1.4, energy: 1.15 },
-  lazy:        { label: 'Lazy',        desc: 'Naps a lot, plays a little.', energy: 0.7, fun: 0.8, sleepy: true },
-  cuddly:      { label: 'Cuddly',      desc: 'Loves being petted, even while asleep.', petLimit: 1.8, bond: 1.4 },
-  aloof:       { label: 'Aloof',       desc: 'Affection on its own terms. Short petting fuse.', petLimit: 0.55, bond: 0.75 },
-  foodie:      { label: 'Foodie',      desc: 'Always hungry. Treats work wonders.', hunger: 1.35, treat: 1.6 },
-  mischievous: { label: 'Mischievous', desc: 'Things on shelves are not safe.', knock: 3 },
-  vocal:       { label: 'Vocal',       desc: 'Has opinions and will share them.', meow: 2.5 },
-  tidy:        { label: 'Tidy',        desc: 'Grooms often, hates a dirty litter box.', groom: 2, picky: true },
-};
-const STAGES = [
-  { id: 'kitten', label: 'Kitten', until: 1800, scale: 0.7, energy: 1.3, fun: 1.25 },
-  { id: 'junior', label: 'Junior', until: 7200, scale: 0.86, energy: 1.1, fun: 1.1 },
-  { id: 'adult',  label: 'Adult',  until: Infinity, scale: 1, energy: 1, fun: 1 },
-];
-const SPOTS = { bed: 0.12, bowl: 0.35, post: 0.5, shelf: 0.66, litter: 0.86 };
-const PRICES = { tuna: 5, treat: 3, catnip: 8 };
-
-/* ================= State ================= */
-let S = null;          // saved state
-let speed = 1;
-const ai = { state: 'idle', until: 0, tx: 0.5, spd: 0, onArrive: null, data: {} };
-const fx = { happyUntil: 0, meowUntil: 0, angryUntil: 0, poseUntil: 0, pose: '', overstim: 0, lastMeow: 0, lastNeedMeow: 0 };
-const laser = { on: false, visible: false, x: 0, y: 0, lastCatchX: -999 };
-const cooldowns = { brush: 0, bath: 0, catnip: 0 };
-let roomW = 800, roomH = 380;
-
-function newCat(name, coat, traits) {
-  return {
-    v: 1, name, coat, traits, born: Date.now(), last: Date.now(), age: 0,
-    stats: { food: 75, fun: 80, energy: 85, hygiene: 90, bond: 15 },
-    coins: 20, bowl: 30, poops: 0, bladder: 0, messes: [], vaseBroken: false,
-    lights: true, x: 0.5, catches: 0, pets: 0, log: [],
-  };
-}
-function rollTraits() {
-  const keys = Object.keys(TRAITS);
-  const a = pick(keys);
-  let b = pick(keys);
-  const clash = { cuddly: 'aloof', aloof: 'cuddly', lazy: 'playful', playful: 'lazy' };
-  while (b === a || clash[a] === b) b = pick(keys);
-  return [a, b];
-}
-function tm(key, def = 1) { // combined trait modifier
-  let m = def, found = false;
-  for (const t of S.traits) {
-    const v = TRAITS[t][key];
-    if (v === undefined) continue;
-    if (typeof v === 'boolean') return v;
-    m = found ? m * v : v; found = true;
-  }
-  return m;
-}
-const has = t => S.traits.includes(t);
-function stage() { return STAGES.find(s => S.age < s.until); }
-
-function save() {
-  if (!S) return;
-  S.last = Date.now();
-  try { localStorage.setItem(SAVE_KEY, JSON.stringify(S)); } catch (e) {}
-}
-function load() {
-  try { const raw = localStorage.getItem(SAVE_KEY); if (raw) return JSON.parse(raw); } catch (e) {}
-  return null;
-}
-
-/* ================= Cat art ================= */
-function catSVG(coatKey) {
-  const c = COATS[coatKey];
-  const stripe = (d, w = 5) => `<path d="${d}" stroke="${c.dark}" stroke-width="${w}" fill="none" stroke-linecap="round"/>`;
-  const bodyStripes = c.stripes ? stripe('M62 128 q12 4 16 16') + stripe('M58 150 q12 2 18 14') + stripe('M138 128 q-12 4 -16 16') + stripe('M142 150 q-12 2 -18 14') : '';
-  const headStripes = c.stripes ? stripe('M100 44 v14', 4) + stripe('M88 46 l3 11', 4) + stripe('M112 46 l-3 11', 4) + stripe('M56 82 h12', 4) + stripe('M144 82 h-12', 4) : '';
-  const tailStripes = c.stripes ? `<path d="M150 158 l10 -8 M170 132 l12 -4 M176 108 l12 4" stroke="${c.dark}" stroke-width="5" stroke-linecap="round"/>` : '';
-  const bodyPatches = c.patches ? `<ellipse cx="72" cy="138" rx="20" ry="16" fill="${c.patches}"/><ellipse cx="130" cy="164" rx="16" ry="12" fill="${c.dark}"/>` : '';
-  const headPatches = c.patches ? `<ellipse cx="78" cy="66" rx="20" ry="16" fill="${c.patches}"/><ellipse cx="124" cy="60" rx="16" ry="12" fill="${c.dark}"/>` : '';
-  const chest = c.chest || c.stripes || c.patches ? `<ellipse cx="100" cy="152" rx="24" ry="30" fill="${c.light}"/>` : '';
-  const paw = c.chest || c.patches ? c.light : c.base;
-  const inner = '#f2a3b3';
-  const eye = (x) => `<ellipse cx="${x}" cy="78" rx="8.5" ry="10" fill="${c.eye}"/><ellipse class="pupil" cx="${x}" cy="78" rx="2.6" ry="8" fill="#111"/><circle cx="${x + 2.5}" cy="73.5" r="2.2" fill="#fff"/>`;
-  return `<svg class="catsvg" viewBox="0 0 200 200" aria-hidden="true">
-  <g class="tail"><path d="M140 168 C 186 160, 192 112, 172 88" stroke="${c.base}" stroke-width="15" fill="none" stroke-linecap="round"/>${tailStripes}</g>
-  <g class="bodyg">
-    <ellipse cx="100" cy="152" rx="48" ry="42" fill="${c.base}"/>${bodyPatches}${chest}${bodyStripes}
-    <g class="paw-l"><ellipse cx="80" cy="190" rx="15" ry="9" fill="${paw}"/></g>
-    <g class="paw-r"><ellipse cx="120" cy="190" rx="15" ry="9" fill="${paw}"/></g>
-  </g>
-  <g class="head">
-    <g class="ear-l"><path d="M60 72 L64 20 L98 50 Z" fill="${c.base}"/><path d="M67 62 L69 33 L89 52 Z" fill="${inner}"/></g>
-    <g class="ear-r"><path d="M140 72 L136 20 L102 50 Z" fill="${c.base}"/><path d="M133 62 L131 33 L111 52 Z" fill="${inner}"/></g>
-    <ellipse cx="100" cy="80" rx="47" ry="40" fill="${c.base}"/>${headPatches}${headStripes}
-    <ellipse cx="100" cy="98" rx="21" ry="13" fill="${c.chest ? c.light : c.light}" opacity="${c.chest || c.stripes || c.patches ? 1 : .5}"/>
-    <ellipse cx="72" cy="94" rx="7" ry="4" fill="#f48aa0" opacity=".35"/><ellipse cx="128" cy="94" rx="7" ry="4" fill="#f48aa0" opacity=".35"/>
-    <g class="eyes">
-      <g class="eye-open">${eye(81)}${eye(119)}</g>
-      <g class="eye-closed"><path d="M73 80 q8 6 16 0 M111 80 q8 6 16 0" stroke="${c.line}" stroke-width="3" fill="none" stroke-linecap="round"/></g>
-      <g class="eye-happy"><path d="M73 82 q8 -10 16 0 M111 82 q8 -10 16 0" stroke="${c.line}" stroke-width="3.5" fill="none" stroke-linecap="round"/></g>
-      <g class="brows"><path d="M70 64 L92 70 M130 64 L108 70" stroke="${c.line}" stroke-width="4" stroke-linecap="round"/></g>
-    </g>
-    <path d="M94.5 91 L105.5 91 L100 97 Z" fill="#e7849a"/>
-    <path d="M100 97 q-5 6 -10 2 M100 97 q5 6 10 2" stroke="${c.line}" stroke-width="2" fill="none" stroke-linecap="round"/>
-    <g class="mouth-open"><ellipse cx="100" cy="104" rx="5" ry="6" fill="#7a2a35"/></g>
-    <path d="M80 97 L42 90 M80 100 L42 102 M120 97 L158 90 M120 100 L158 102" stroke="${c.line}" stroke-width="1.4" opacity=".7"/>
-  </g>
-</svg>`;
-}
-
-/* ================= DOM refs ================= */
-const room = $('room'), catEl = $('cat'), bubble = $('bubble'), laserEl = $('laser');
-const STAT_DEFS = [
-  ['food', '🍗', 'Fullness'], ['fun', '🧶', 'Fun'], ['energy', '⚡', 'Energy'], ['hygiene', '🫧', 'Hygiene'], ['bond', '💗', 'Bond'],
-];
-function buildStats() {
-  $('stats').innerHTML = STAT_DEFS.map(([k, i, n]) =>
-    `<div class="stat"><span>${i}</span><span class="name">${n}</span><div class="bar"><i id="bar-${k}"></i></div><span class="val" id="val-${k}"></span></div>`).join('');
-}
-const ACTIONS = [
-  { group: 'Food' },
-  { id: 'kibble', icon: '🥣', label: 'Kibble', note: 'free', fn: doKibble },
-  { id: 'tuna', icon: '🐟', label: 'Tuna', note: `${PRICES.tuna} 🪙`, fn: doTuna },
-  { id: 'treat', icon: '🍬', label: 'Treat', note: `${PRICES.treat} 🪙`, fn: doTreat },
-  { group: 'Care' },
-  { id: 'brush', icon: '🪮', label: 'Brush', note: 'grooming', fn: doBrush },
-  { id: 'scoop', icon: '🧹', label: 'Scoop', note: 'litter box', fn: doScoop },
-  { id: 'bath', icon: '🛁', label: 'Bath', note: 'brave?', fn: doBath },
-  { group: 'Play & home' },
-  { id: 'laser', icon: '🔴', label: 'Laser', note: 'toggle', fn: toggleLaser },
-  { id: 'catnip', icon: '🌿', label: 'Catnip', note: `${PRICES.catnip} 🪙`, fn: doCatnip },
-  { id: 'lights', icon: '💡', label: 'Lights', note: 'on', fn: toggleLights },
-];
-function buildActions() {
-  $('actions').innerHTML = ACTIONS.map(a => a.group ? `<h3>${a.group}</h3>` :
-    `<button class="act" id="act-${a.id}"><b>${a.icon}</b>${a.label}<small id="note-${a.id}">${a.note}</small></button>`).join('');
-  for (const a of ACTIONS) if (a.id) $('act-' + a.id).addEventListener('click', a.fn);
-}
-
-/* ================= Messages ================= */
-function log(msg) {
-  S.log.unshift({ t: Date.now(), m: msg });
-  S.log.length = Math.min(S.log.length, 40);
-  renderLog();
-}
-function renderLog() {
-  $('log').innerHTML = S.log.slice(0, 25).map(e => {
-    const d = new Date(e.t);
-    return `<li><time>${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</time>${escapeHtml(e.m)}</li>`;
-  }).join('');
-}
-function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
-let bubbleTimer = 0;
-function say(text, ms = 2200) {
-  bubble.textContent = text;
-  bubble.classList.add('show');
-  fx.meowUntil = performance.now() + 500;
-  clearTimeout(bubbleTimer);
-  bubbleTimer = setTimeout(() => bubble.classList.remove('show'), ms);
-}
-function float(text, color = '#e0794a', dx = 0, dy = 0) {
-  const el = document.createElement('div');
-  el.className = 'fx';
-  el.textContent = text;
-  el.style.color = color;
-  el.style.left = (S.x * roomW + dx + rand(-12, 12)) + 'px';
-  el.style.top = (roomH * 0.93 - catHeight() * 0.9 + dy) + 'px';
-  room.appendChild(el);
-  setTimeout(() => el.remove(), 1400);
-}
-function catHeight() { return catEl.offsetHeight || 130; }
-
-/* ================= AI ================= */
-function setState(state, ms = 0, data = {}) {
-  ai.state = state; ai.until = performance.now() + ms; ai.data = data;
-}
-function walkTo(x, onArrive, spd = 95) {
-  ai.state = 'walk'; ai.tx = clamp(x, 0.06, 0.94); ai.spd = spd; ai.onArrive = onArrive;
-}
-function idle(ms = rand(1500, 4000)) { setState('idle', ms); }
-function pose(name, ms) { fx.pose = name; fx.poseUntil = performance.now() + ms; }
-
-function decide() {
-  const s = S.stats;
-  if (laser.on && laser.visible && s.energy > 12) return setState('chase');
-  if (s.energy < 18 || (tm('sleepy', false) && s.energy < 35 && Math.random() < 0.3) || (!S.lights && s.energy < 60 && Math.random() < 0.5))
-    return walkTo(SPOTS.bed, startSleep);
-  if (S.bladder >= 60) return walkTo(SPOTS.litter + rand(-0.02, 0.02), useLitter);
-  if (s.food < 65 && S.bowl > 0) return walkTo(SPOTS.bowl, () => setState('eat'));
-  needMeow();
-  const r = Math.random();
-  const knockP = S.vaseBroken ? 0 : 0.035 * tm('knock') * (s.fun < 40 ? 2.5 : 1);
-  const giftP = s.bond > 50 && S.messes.filter(m => m.type === 'gift').length < 2 ? 0.03 : 0;
-  const groomP = 0.12 * tm('groom') * (s.hygiene < 60 ? 1.8 : 1);
-  if (r < knockP) return walkTo(SPOTS.shelf, knockVase);
-  if (r < knockP + giftP) return walkTo(rand(0.15, 0.8), dropGift, 110);
-  if (r < knockP + giftP + groomP) return setState('groom', rand(3000, 5000));
-  if (r < 0.5) return walkTo(rand(0.08, 0.92), () => idle());
-  if (r < 0.58 && s.fun < 70) return walkTo(SPOTS.post, () => { setState('scratch', 2200); S.stats.fun += 4; float('scratch scratch', '#8c6a45'); });
-  idle();
-}
-function needMeow(force) {
-  const now = performance.now();
-  const gap = 9000 / tm('meow');
-  if (!force && now - fx.lastNeedMeow < gap) return;
-  const s = S.stats;
-  let line = null;
-  if (s.food < 30) line = S.bowl > 0 ? null : pick(['Mrrrow? (bowl is empty)', 'MEOW. Food.', 'Feed me, human 🍽️']);
-  else if (S.poops >= 3) line = 'Ew. Clean my box! 🧹';
-  else if (s.fun < 25) line = pick(['So... bored...', 'Play with me? 🧶', 'Mrrp?']);
-  else if (s.hygiene < 25) line = 'I feel scruffy.';
-  else if (Math.random() < 0.15 * tm('meow')) line = pick(['Mew!', 'Mrrp.', 'Prrrt?', 'Meow.', '...']);
-  if (line) { say(line); fx.lastNeedMeow = now; }
-}
-function startSleep() {
-  setState('sleep');
-  log(`${S.name} curled up in the bed for a nap.`);
-}
-function wake(grumpy) {
-  idle(1500);
-  if (grumpy) { say('Hrrmph.'); fx.angryUntil = performance.now() + 900; S.stats.fun -= 3; }
-}
-function useLitter() {
-  const limit = tm('picky', false) ? 2 : 3;
-  if (S.poops >= limit + 1) {
-    // Box too dirty: goes elsewhere
-    const x = rand(0.55, 0.78);
-    walkTo(x, () => {
-      addMess('puddle', x);
-      S.bladder = 0;
-      S.stats.bond -= 4;
-      say('...the box was dirty.');
-      log(`${S.name} refused the dirty litter box and went on the floor. 💦`);
-      idle();
-    });
-    return;
-  }
-  setState('litter', 2500);
-  setTimeout(() => {
-    S.bladder = 0;
-    S.poops += 1;
-    renderFurniture();
-    if (S.poops >= limit) log(`The litter box is getting full (${S.poops}).`);
-  }, 2400);
-}
-function knockVase() {
-  if (S.vaseBroken) return idle();
-  pose('highjump', 900);
-  setState('busy', 1300);
-  setTimeout(() => {
-    const v = $('vase');
-    v.classList.add('falling');
-    say(pick(['Oops.', '*stares at you*', 'It was in my way.']));
-    setTimeout(() => {
-      S.vaseBroken = true;
-      v.classList.remove('falling');
-      renderFurniture();
-      addMess('shards', SPOTS.shelf + 0.01);
-      S.stats.fun += 10;
-      log(`💥 ${S.name} knocked the vase off the shelf. On purpose.`);
-    }, 700);
-  }, 400);
-}
-function dropGift() {
-  addMess('gift', S.x);
-  say(pick(['I brought you this.', 'For you. 🎁', 'Mrrp! (gift)']));
-  fx.happyUntil = performance.now() + 2000;
-  log(`${S.name} brought you a gift. Click it to collect!`);
-  idle();
-}
-function addMess(type, x) {
-  S.messes.push({ id: Math.random().toString(36).slice(2, 8), type, x: clamp(x, 0.05, 0.95) });
-  renderMesses();
-}
-
-function update(dtReal, now) {
-  const s = S.stats;
-  const dt = dtReal * speed;   // game seconds
-  const st = stage();
-  S.age += dt;
-
-  // --- needs decay
-  const sleeping = ai.state === 'sleep';
-  s.food -= 0.045 * dt * tm('hunger');
-  s.fun -= 0.04 * dt * tm('fun') * st.fun * (sleeping ? 0.25 : 1);
-  if (sleeping) s.energy += 0.3 * dt * (S.lights ? 0.8 : 1.4);
-  else s.energy -= 0.028 * dt * tm('energy') * st.energy;
-  s.hygiene -= 0.014 * dt;
-  if (S.poops >= 3) { s.fun -= 0.015 * dt; s.hygiene -= 0.01 * dt; }
-  if (S.messes.some(m => m.type !== 'gift')) s.fun -= 0.006 * dt;
-  if (s.food < 15 || s.fun < 15) s.bond -= 0.008 * dt;
-  else if (s.food > 60 && s.fun > 60 && s.hygiene > 50) s.bond += 0.002 * dt;
-  for (const k in s) s[k] = clamp(s[k]);
-
-  fx.overstim = Math.max(0, fx.overstim - 12 * dtReal);
-
-  // --- behaviour
-  switch (ai.state) {
-    case 'walk': {
-      if (moveToward(ai.tx, ai.spd, dtReal)) { const cb = ai.onArrive; ai.onArrive = null; idle(); cb && cb(); }
-      break;
-    }
-    case 'chase': {
-      if (!laser.on || !laser.visible) { idle(1200); break; }
-      if (s.energy <= 12) { say('Too... tired... 😮‍💨'); idle(2000); break; }
-      const reached = moveToward(laser.x / roomW, 340, dtReal, 0.03);
-      const onFloor = laser.y > roomH * 0.6;
-      if (reached && onFloor && Math.abs(laser.x - laser.lastCatchX) > 60) {
-        laser.lastCatchX = laser.x;
-        pose('pounce', 600);
-        s.fun += 7 * tm('fun'); s.energy -= 4; S.catches++; S.coins += 1;
-        float('+1 🪙', '#c99a1f');
-        if (S.catches % 10 === 0) log(`${S.name} has caught the red dot ${S.catches} times. It is never satisfied.`);
-      }
-      break;
-    }
-    case 'zoomies': {
-      if (moveToward(ai.tx, 380, dtReal)) ai.tx = rand(0.08, 0.92);
-      if (now > ai.until) { idle(); fx.happyUntil = now + 3000; say('Prrrrr~'); }
-      break;
-    }
-    case 'eat': {
-      const amt = Math.min(S.bowl, 9 * dtReal);
-      S.bowl -= amt; s.food = clamp(s.food + amt); S.bladder += amt * 0.45;
-      if (S.bowl <= 0.01 || s.food >= 99) {
-        S.bowl = Math.max(0, S.bowl);
-        if (s.food >= 99) { fx.happyUntil = now + 1500; float('😋'); }
-        idle(2000);
-      }
-      renderFurniture();
-      break;
-    }
-    case 'sleep': {
-      if (s.energy >= 98 || (laser.on && laser.visible && s.energy > 60)) wake(false);
-      else if (Math.random() < dtReal * 0.35) float('z', '#7b8fd1', 20, -10);
-      break;
-    }
-    case 'groom': {
-      s.hygiene = clamp(s.hygiene + 2.2 * dtReal);
-      if (now > ai.until) {
-        if (s.hygiene < 70 && Math.random() < 0.18) {
-          say('*hack* *hack*');
-          setTimeout(() => { addMess('hairball', S.x + 0.04); log(`${S.name} coughed up a hairball. Lovely. (Brushing helps.)`); }, 900);
-        }
-        idle();
-      }
-      break;
-    }
-    case 'petted': if (now > ai.until) idle(800); break;
-    default: if (now > ai.until) decide();
-  }
-  if (laser.on && laser.visible && s.energy > 12 && (ai.state === 'idle' || ai.state === 'walk')) setState('chase');
-}
-function moveToward(tx, pxPerSec, dt, tol = 0.006) {
-  const dx = tx - S.x;
-  if (Math.abs(dx) <= tol) return true;
-  const step = (pxPerSec * dt) / roomW;
-  S.x += Math.sign(dx) * Math.min(Math.abs(dx), step);
-  ai.dir = dx < 0 ? -1 : 1;
-  return Math.abs(tx - S.x) <= tol;
-}
-
-/* ================= Petting ================= */
-let petting = false, petDist = 0, lastPt = null, strokes = 0;
-catEl.addEventListener('pointerdown', e => {
-  if (laser.on) return;
-  e.preventDefault();
-  petting = true; lastPt = { x: e.clientX, y: e.clientY }; petDist = 0;
-  catEl.setPointerCapture(e.pointerId);
-  stroke();
-});
-catEl.addEventListener('pointermove', e => {
-  if (!petting) return;
-  const d = Math.hypot(e.clientX - lastPt.x, e.clientY - lastPt.y);
-  lastPt = { x: e.clientX, y: e.clientY };
-  petDist += d;
-  while (petDist > 45) { petDist -= 45; stroke(); }
-});
-const endPet = () => { petting = false; };
-catEl.addEventListener('pointerup', endPet);
-catEl.addEventListener('pointercancel', endPet);
-
-function stroke() {
-  const now = performance.now();
-  if (ai.state === 'busy' || ai.state === 'swat' || ai.state === 'zoomies') return;
-  if (ai.state === 'sleep') {
-    if (has('cuddly')) { S.stats.bond += 0.3; if (Math.random() < 0.3) float('purr', '#c76b9a'); return; }
-    if (Math.random() < 0.35) { wake(true); log(`You woke ${S.name} up. ${S.name} is not amused.`); }
-    return;
-  }
-  const limit = tm('petLimit');
-  fx.overstim += 6 / limit;
-  if (fx.overstim > 100) return swat();
-  S.stats.bond = clamp(S.stats.bond + 0.45 * tm('bond'));
-  S.stats.fun = clamp(S.stats.fun + 0.35);
-  S.pets++;
-  fx.happyUntil = now + 900;
-  if (ai.state !== 'chase') setState('petted', 1400);
-  if (++strokes % 4 === 0) float(Math.random() < 0.5 ? 'purr~' : '💗', '#c76b9a');
-  if (S.pets % 100 === 0) log(`You've petted ${S.name} ${S.pets} times. 💗`);
-}
-function swat() {
-  petting = false;
-  fx.overstim = 40;
-  fx.angryUntil = performance.now() + 1500;
-  pose('pounce', 600);
-  say(pick(['HSSS!', 'Enough!', '*swat*']));
-  float('💢', '#d9534f');
-  S.stats.bond = clamp(S.stats.bond - 3);
-  log(`${S.name} got overstimulated and swatted you. Watch for the lashing tail!`);
-  setState('swat', 1300);
-  setTimeout(() => { if (ai.state === 'swat') walkTo(S.x < 0.5 ? S.x + 0.3 : S.x - 0.3, () => idle(), 140); }, 1300);
-}
-
-/* ================= Actions ================= */
-function spend(n) {
-  if (S.coins < n) { toast(`Not enough coins (need ${n} 🪙). Play laser to earn some.`); return false; }
-  S.coins -= n; return true;
-}
-function toast(msg) { log(msg); }
-function interrupt() { if (ai.state === 'sleep') wake(false); }
-
-function doKibble() {
-  if (S.bowl >= 95) return toast('The bowl is already full.');
-  S.bowl = Math.min(100, S.bowl + 50);
-  renderFurniture();
-  if (ai.state === 'sleep' && has('foodie')) wake(false);
-  if (ai.state === 'idle' || ai.state === 'walk' || ai.state === 'petted') {
-    if (S.stats.food < 80) { walkTo(SPOTS.bowl, () => setState('eat'), 130); say('Food!'); }
-  }
-}
-function handFeed(food, fun, bond, label) {
-  interrupt();
-  const s = S.stats;
-  s.food = clamp(s.food + food); s.fun = clamp(s.fun + fun); s.bond = clamp(s.bond + bond);
-  S.bladder += food * 0.45;
-  setState('busy', 1600); pose('eating', 1600);
-  fx.happyUntil = performance.now() + 2600;
-  float(label);
-}
-function doTuna() { if (!spend(PRICES.tuna)) return; handFeed(35, 12, 2, '🐟 nom'); log(`${S.name} devoured the tuna.`); }
-function doTreat() {
-  if (!spend(PRICES.treat)) return;
-  const m = tm('treat');
-  handFeed(8, 14 * m, 3 * m, '🍬 +' + Math.round(3 * m) + ' bond');
-}
-function doBrush() {
-  const now = performance.now();
-  if (now < cooldowns.brush) return toast(`${S.name} has had enough brushing for now.`);
-  cooldowns.brush = now + 8000;
-  interrupt();
-  const s = S.stats;
-  s.hygiene = clamp(s.hygiene + 25);
-  if (has('aloof') && Math.random() < 0.5) { s.fun -= 5; say('...fine.'); }
-  else { s.bond = clamp(s.bond + 2); fx.happyUntil = now + 1800; float('✨'); }
-  setState('petted', 1500);
-}
-function doScoop() {
-  const messy = S.messes.filter(m => m.type !== 'gift').length;
-  if (S.poops === 0) return toast(messy ? 'The box is clean. Click the messes on the floor to tidy them.' : 'The litter box is already clean.');
-  S.poops = 0; renderFurniture();
-  log('You scooped the litter box. 🧹');
-}
-function doBath() {
-  const now = performance.now();
-  if (now < cooldowns.bath) return toast(`${S.name} is still recovering from the last bath.`);
-  cooldowns.bath = now + 20000;
-  interrupt();
-  const s = S.stats;
-  s.hygiene = 100; s.fun = clamp(s.fun - 30); s.bond = clamp(s.bond - 6);
-  fx.angryUntil = now + 2500;
-  say(pick(['BETRAYAL.', 'MRAAOOW!', 'I will remember this.']), 2600);
-  float('💦', '#4aa3df');
-  log(`You bathed ${S.name}. Squeaky clean, deeply offended.`);
-  setState('busy', 1000);
-  setTimeout(() => walkTo(S.x < 0.5 ? 0.9 : 0.1, () => idle(4000), 260), 900);
-}
-function doCatnip() {
-  const now = performance.now();
-  if (now < cooldowns.catnip) return toast('Too much catnip is not a good idea. Try again later.');
-  if (!spend(PRICES.catnip)) return;
-  cooldowns.catnip = now + 30000;
-  interrupt();
-  S.stats.fun = clamp(S.stats.fun + 30); S.stats.energy = clamp(S.stats.energy - 8);
-  say('!!!!!');
-  log(`${S.name} sniffed the catnip and got the zoomies. 🌿`);
-  setState('zoomies', 7000); ai.tx = rand(0.08, 0.92);
-}
-function toggleLaser() {
-  laser.on = !laser.on;
-  room.classList.toggle('laser-mode', laser.on);
-  if (!laser.on) { laser.visible = false; if (ai.state === 'chase') idle(); }
-  else toast('Move your pointer (or finger) across the floor to play. Cats earn 🪙 per catch.');
-  renderActions();
-}
-function toggleLights() {
-  S.lights = !S.lights;
-  renderActions(); renderRoom();
-  if (!S.lights && S.stats.energy < 70 && ai.state !== 'sleep') walkTo(SPOTS.bed, startSleep, 80);
-}
-
-room.addEventListener('pointermove', e => {
-  if (!laser.on) return;
-  const r = room.getBoundingClientRect();
-  laser.x = e.clientX - r.left; laser.y = e.clientY - r.top; laser.visible = true;
-  laserEl.classList.add('on');
-  laserEl.style.left = laser.x + 'px'; laserEl.style.top = laser.y + 'px';
-});
-room.addEventListener('pointerdown', e => { if (laser.on) { room.dispatchEvent(new PointerEvent('pointermove', e)); } });
-room.addEventListener('pointerleave', () => { laser.visible = false; laserEl.classList.remove('on'); });
-
-/* ================= Rendering ================= */
-function renderFurniture() {
-  $('kibble').style.height = (S.bowl / 100 * 14) + 'px';
-  $('bowlLbl').textContent = S.bowl < 1 ? 'empty' : '';
-  $('litter').innerHTML = '<span>💩</span>'.repeat(Math.min(S.poops, 5));
-  $('vase').style.opacity = S.vaseBroken ? 0 : 1;
-}
-function renderMesses() {
-  const icons = { hairball: '🟤', puddle: '💦', shards: '🧩', gift: '🐭' };
-  const titles = { hairball: 'Hairball: click to clean', puddle: 'Accident: click to clean', shards: 'Broken vase: click to sweep up', gift: 'A gift! Click to collect' };
-  $('messes').innerHTML = S.messes.map(m => `<button class="mess" data-id="${m.id}" style="left:${m.x * 100}%" title="${titles[m.type]}">${icons[m.type]}</button>`).join('');
-}
-$('messes').addEventListener('click', e => {
-  const b = e.target.closest('.mess'); if (!b) return;
-  const i = S.messes.findIndex(m => m.id === b.dataset.id); if (i < 0) return;
-  const m = S.messes.splice(i, 1)[0];
-  if (m.type === 'gift') { const c = Math.floor(rand(4, 9)); S.coins += c; log(`You accepted the gift (a slightly damp toy mouse). +${c} 🪙`); S.stats.bond = clamp(S.stats.bond + 2); }
-  else if (m.type === 'shards') { S.vaseBroken = false; renderFurniture(); log('You swept up the vase and glued it back together. For now.'); }
-  else log(m.type === 'hairball' ? 'You cleaned up the hairball.' : 'You cleaned up the accident.');
-  renderMesses();
-});
-
-function renderRoom() {
-  const h = new Date().getHours() + new Date().getMinutes() / 60;
-  let sky, cel;
-  if (h >= 7 && h < 17) { sky = 'linear-gradient(#7ec8f2,#cfeaf8)'; cel = '☀️'; }
-  else if (h >= 17 && h < 20) { sky = 'linear-gradient(#f59e6b,#fbd38d)'; cel = '🌇'; }
-  else if (h >= 5 && h < 7) { sky = 'linear-gradient(#f8b2a0,#fde3c2)'; cel = '🌅'; }
-  else { sky = 'linear-gradient(#141a3a,#2c3566)'; cel = '🌙'; }
-  $('sky').style.background = sky; $('celestial').textContent = cel;
-  room.classList.toggle('dark', !S.lights);
-}
-
-let lastUI = 0;
-function renderCat(now) {
-  const cls = ['cat'];
-  const st = ai.state;
-  if (st === 'walk' || st === 'chase' || st === 'zoomies') { if (!(st === 'chase' && Math.abs(laser.x / roomW - S.x) < 0.02)) cls.push('walking'); }
-  if (st === 'chase') cls.push('chasing');
-  if (st === 'sleep') cls.push('sleeping');
-  if (st === 'eat') cls.push('eating');
-  if (st === 'groom') cls.push('grooming');
-  if (now < fx.poseUntil) cls.push(fx.pose);
-  if (now < fx.angryUntil || st === 'swat') cls.push('angry');
-  else if (now < fx.happyUntil || st === 'petted') cls.push('happy');
-  if (now < fx.meowUntil) cls.push('meow');
-  if (fx.overstim > 55 && st !== 'sleep') cls.push('annoyed');
-  if (st === 'petted' && fx.overstim < 55) cls.push('purr');
-  if (ai.dir < 0) cls.push('dir-left');
-  const c = cls.join(' ');
-  if (catEl.className !== c) catEl.className = c;
-  catEl.style.left = (S.x * 100) + '%';
-  bubble.style.left = (S.x * roomW) + 'px';
-  bubble.style.top = (roomH * 0.93 - catHeight() - 6) + 'px';
-}
-function barClass(k, v) { return k === 'bond' ? 'bond' : v < 25 ? 'low' : v < 55 ? 'mid' : ''; }
-function mood() {
-  const s = S.stats;
-  if (ai.state === 'sleep') return ['😴', 'Sleeping'];
-  if (ai.state === 'zoomies') return ['🙀', 'ZOOMIES'];
-  if (performance.now() < fx.angryUntil) return ['😾', 'Annoyed'];
-  if (s.food < 20) return ['😿', 'Starving'];
-  if (S.poops >= 3) return ['😾', 'Disgusted by the litter box'];
-  if (s.energy < 20) return ['🥱', 'Exhausted'];
-  if (s.fun < 20) return ['😾', 'Bored'];
-  if (s.hygiene < 25) return ['🙀', 'Scruffy'];
-  const avg = (s.food + s.fun + s.energy + s.hygiene) / 4;
-  if (avg > 80 && s.bond > 60) return ['😻', 'Blissful'];
-  if (avg > 55) return ['😺', 'Content'];
-  return ['🐱', 'Meh'];
-}
-function fmtAge() {
-  const weeks = S.age / 60; // 1 game-minute = 1 cat-week
-  return weeks < 52 ? `${Math.floor(weeks)} wks` : `${(weeks / 52).toFixed(1)} yrs`;
-}
-function renderUI() {
-  const s = S.stats;
-  for (const [k] of STAT_DEFS) {
-    const b = $('bar-' + k), v = Math.round(s[k]);
-    b.style.width = v + '%'; b.className = barClass(k, v);
-    $('val-' + k).textContent = v;
-  }
-  $('coins').textContent = S.coins;
-  const st = stage();
-  $('stage').textContent = st.label; $('age').textContent = fmtAge();
-  const [e, t] = mood(); $('moodEmoji').textContent = e; $('moodText').textContent = t;
-  const w = Math.min(150, Math.max(100, roomW * 0.17)) * st.scale;
-  catEl.style.setProperty('--catw', w + 'px');
-  if (S._stage !== st.id) {
-    if (S._stage) log(`🎉 ${S.name} grew up into a${st.label === 'Adult' ? 'n' : ''} ${st.label.toLowerCase()}!`);
-    S._stage = st.id;
-  }
-  renderActions();
-}
-function renderActions() {
-  const set = (id, dis, on, note) => {
-    const b = $('act-' + id); if (!b) return;
-    b.disabled = !!dis; b.classList.toggle('on', !!on);
-    if (note !== undefined) $('note-' + id).textContent = note;
-  };
-  set('tuna', S.coins < PRICES.tuna); set('treat', S.coins < PRICES.treat); set('catnip', S.coins < PRICES.catnip);
-  set('laser', false, laser.on, laser.on ? 'on' : 'off');
-  set('lights', false, !S.lights, S.lights ? 'on' : 'off');
-  set('scoop', false, false, S.poops ? `${S.poops} in box` : 'litter box');
-}
-function renderHeader() {
-  $('catName').textContent = S.name;
-  $('traitChips').innerHTML = S.traits.map(t => `<span class="chip" title="${TRAITS[t].desc}">${TRAITS[t].label}</span>`).join('');
-  $('catArt').innerHTML = catSVG(S.coat);
-  document.title = `${S.name} · Whisker Room`;
-}
-
-/* ================= Loop ================= */
-let lastFrame = performance.now(), lastSave = 0, lastRoom = 0;
-function frame(now) {
-  const dt = Math.min(0.25, (now - lastFrame) / 1000);
-  lastFrame = now;
-  if (S) {
-    update(dt, now);
-    renderCat(now);
-    if (now - lastUI > 250) { renderUI(); lastUI = now; }
-    if (now - lastSave > 5000) { save(); lastSave = now; }
-    if (now - lastRoom > 60000) { renderRoom(); lastRoom = now; }
-  }
-  requestAnimationFrame(frame);
-}
-function measure() { roomW = room.clientWidth; roomH = room.clientHeight; }
-addEventListener('resize', measure);
-addEventListener('visibilitychange', () => { if (document.hidden) save(); else if (S) { catchUp(); } });
-addEventListener('pagehide', save);
-
-/* Offline progress: coarse simulation of what the cat did while you were away */
-function catchUp() {
-  const away = Math.min(8 * 3600, (Date.now() - S.last) / 1000);
-  S.last = Date.now();
-  if (away < 30) return;
-  const s = S.stats, before = { ...s }, poopsBefore = S.poops;
-  let sleeping = false, slept = 0, ate = 0;
-  // Away-time runs at 1/4 speed (cats sleep most of the day) and never drops a need below 10.
-  for (let t = 0; t < away; t += 10) {
-    const dt = 2.5;
-    S.age += 10;
-    s.food -= 0.045 * dt * tm('hunger');
-    if (s.food < 60 && S.bowl > 0) { const a = Math.min(S.bowl, 40 - Math.max(0, s.food - 60)); S.bowl -= a; s.food += a; S.bladder += a * 0.45; ate += a; }
-    if (!sleeping && s.energy < 25) sleeping = true;
-    if (sleeping) { s.energy += 0.3 * dt; slept += dt; if (s.energy >= 95) sleeping = false; }
-    else s.energy -= 0.028 * dt * tm('energy');
-    s.fun -= 0.04 * dt * tm('fun') * (sleeping ? 0.25 : 1);
-    s.hygiene -= 0.014 * dt * 0.5; // self-grooming offsets part of it
-    if (S.bladder >= 60) { S.bladder = 0; if (S.poops < 4) S.poops++; else if (!S.messes.some(m => m.type === 'puddle')) S.messes.push({ id: 'p' + t, type: 'puddle', x: rand(0.55, 0.78) }); }
-    for (const k in s) s[k] = clamp(s[k], 10, 100);
-  }
-  if (!S.vaseBroken && Math.random() < 0.12 * tm('knock') * (away / 3600)) { S.vaseBroken = true; S.messes.push({ id: 'v' + Date.now(), type: 'shards', x: SPOTS.shelf + 0.01 }); }
-  const mins = Math.round(away / 60);
-  const bits = [];
-  if (ate > 1) bits.push('ate from the bowl');
-  if (slept > 15) bits.push(`napped ~${Math.round(slept * 4 / 60)} min`);
-  if (S.poops > poopsBefore) bits.push('used the litter box');
-  if (S.vaseBroken && S.messes.some(m => m.type === 'shards' && m.id.startsWith('v'))) bits.push('knocked over the vase');
-  log(`While you were away (${mins >= 60 ? (mins / 60).toFixed(1) + ' h' : mins + ' min'}), ${S.name} ${bits.length ? bits.join(', ') : 'mostly stared out the window'}.`);
-  renderFurniture(); renderMesses();
-  setTimeout(() => needMeow(true), 800);
-}
-
-/* ================= Adoption & settings ================= */
-let draft = { coat: 'orange', traits: rollTraits() };
-const NAMES = ['Mochi', 'Miso', 'Biscuit', 'Pepper', 'Noodle', 'Tofu', 'Luna', 'Mango', 'Pickles', 'Olive', 'Sushi', 'Waffles'];
-function openAdopt() {
-  $('swatches').innerHTML = Object.entries(COATS).map(([k, c]) =>
-    `<button class="swatch" data-coat="${k}"><span class="dot" style="background:${c.patches ? `linear-gradient(90deg,${c.base} 33%,${c.patches} 33% 66%,${c.dark} 66%)` : c.chest ? `linear-gradient(90deg,${c.base} 50%,${c.light} 50%)` : c.base}"></span>${c.name}</button>`).join('');
-  $('adoptName').value = pick(NAMES);
-  renderAdopt();
-  $('adopt').classList.add('open');
-}
-function renderAdopt() {
-  $('adoptPreview').innerHTML = catSVG(draft.coat);
-  document.querySelectorAll('.swatch').forEach(b => b.classList.toggle('sel', b.dataset.coat === draft.coat));
-  $('adoptTraits').innerHTML = draft.traits.map(t => `<b>${TRAITS[t].label}</b><span>${TRAITS[t].desc}</span>`).join('<br>');
-}
-$('swatches').addEventListener('click', e => { const b = e.target.closest('.swatch'); if (b) { draft.coat = b.dataset.coat; renderAdopt(); } });
-$('rollBtn').addEventListener('click', () => { draft.traits = rollTraits(); renderAdopt(); });
-$('adoptBtn').addEventListener('click', () => {
-  const name = $('adoptName').value.trim() || pick(NAMES);
-  S = newCat(name, draft.coat, draft.traits);
-  $('adopt').classList.remove('open');
-  start();
-  log(`You adopted ${name}, a ${COATS[draft.coat].name.toLowerCase()} kitten. Welcome home! 🏠`);
-  setTimeout(() => say('Mew?'), 600);
-  save();
-});
-$('settingsBtn').addEventListener('click', () => $('settings').classList.add('open'));
-$('closeSettings').addEventListener('click', () => $('settings').classList.remove('open'));
-$('speed').addEventListener('change', e => { speed = +e.target.value; });
-$('theme').addEventListener('change', e => {
-  const v = e.target.value;
-  if (v) document.documentElement.dataset.theme = v; else delete document.documentElement.dataset.theme;
-  try { localStorage.setItem(SAVE_KEY + '-theme', v); } catch (err) {}
-});
-$('resetBtn').addEventListener('click', () => {
-  if (!confirm(`Rehome ${S ? S.name : 'your cat'} and start over? This can't be undone.`)) return;
-  try { localStorage.removeItem(SAVE_KEY); } catch (e) {}
-  S = null; $('settings').classList.remove('open');
-  draft = { coat: 'orange', traits: rollTraits() };
-  openAdopt();
-});
-try { const th = localStorage.getItem(SAVE_KEY + '-theme'); if (th) { document.documentElement.dataset.theme = th; $('theme').value = th; } } catch (e) {}
-
-function start() {
-  measure();
-  renderHeader(); renderFurniture(); renderMesses(); renderRoom(); renderLog(); renderUI();
-  idle(1000);
-}
-
-buildStats(); buildActions();
-S = load();
-if (S && S.v === 1) { start(); catchUp(); } else { S = null; openAdopt(); }
-requestAnimationFrame(frame);
-
-// Expose for debugging in the console
-window.whisker = { get state() { return S; }, ai, setSpeed: v => (speed = v) };
-})();
-</script>
+<script src="vendor/three.min.js"></script>
+<script src="js/world.js"></script>
+<script src="js/cat.js"></script>
+<script src="js/brain.js"></script>
+<script src="js/ui.js"></script>
 </body>
 </html>
