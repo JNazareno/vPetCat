@@ -1,4 +1,4 @@
-# Whisker Room: 3D cat simulator
+# Virtual Pet Cat: 3D cat simulator
 
 A browser-based 3D virtual cat simulator.
 
@@ -44,6 +44,6 @@ You can also open `cat-pet/src/index.html` directly while developing.
 - `src/js/brain.js`: needs, utility AI, activities written as generators, player interactions, save/load and offline catch-up
 - `src/js/ui.js`: HUD, tools and input (pet, carry, throw, laser, wand), synthesized sound (purring, meows, hisses...), main loop
 
-Debug handles in the console: `whisker.sim`, `whisker.world`, `whisker.setSpeed(n)`.
+Debug handles in the console: `virtualPetCat.sim`, `virtualPetCat.world`, `virtualPetCat.setSpeed(n)`.
 
 three.js r159 (MIT licence, see `cat-pet/src/vendor/LICENSE-three.txt`) is used as a classic script and inlined into the built page, so it works straight from `file://`.

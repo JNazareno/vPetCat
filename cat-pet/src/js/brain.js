@@ -1,12 +1,13 @@
-/* Whisker Room: simulation (needs, utility AI, activities as generators, save/load) */
+/* Virtual Pet Cat: simulation (needs, utility AI, activities as generators, save/load) */
 (function () {
 'use strict';
-const WR = window.WR = window.WR || {};
+const VPC = window.VPC = window.VPC || {};
 const T = THREE;
-const { SPOTS, POINTS, BOUNDS, BLOCKERS } = WR;
+const { SPOTS, POINTS, BOUNDS, BLOCKERS } = VPC;
 
-const SAVE_KEY = 'whisker-room-3d-v2';
-const OLD_SAVE_KEY = 'whisker-room-v1';
+const SAVE_KEY = 'virtual-pet-cat-v2';
+const LEGACY_3D_KEY = 'whisker-room-3d-v2'; // saves from before the rename
+const OLD_SAVE_KEY = 'whisker-room-v1';     // saves from the 2D prototype
 
 const clamp = (v, a = 0, b = 100) => Math.max(a, Math.min(b, v));
 const rand = (a, b) => a + Math.random() * (b - a);
@@ -32,7 +33,7 @@ const STAGES = [
   { id: 'adult',  label: 'Adult',  until: Infinity, scale: 1, energy: 1, fun: 1 },
 ];
 const PRICES = { wet: 4, treat: 2, catnip: 8 };
-WR.TRAITS = TRAITS; WR.ZONE_LABEL = ZONE_LABEL; WR.PRICES = PRICES; WR.STAGES = STAGES;
+VPC.TRAITS = TRAITS; VPC.ZONE_LABEL = ZONE_LABEL; VPC.PRICES = PRICES; VPC.STAGES = STAGES;
 
 function rollTraits() {
   const keys = Object.keys(TRAITS);
@@ -49,7 +50,7 @@ function rollPrefs(traits) {
   const fav = pick(['head', 'cheek', 'chin', 'back', 'rump']); p[fav] = Math.max(p[fav], 1.45);
   return p;
 }
-WR.rollTraits = rollTraits;
+VPC.rollTraits = rollTraits;
 
 class Sim {
   constructor(world, model, hooks) {
@@ -94,13 +95,13 @@ class Sim {
   }
   load() {
     let S = null;
-    try { const raw = localStorage.getItem(SAVE_KEY); if (raw) S = JSON.parse(raw); } catch (e) {}
+    try { const raw = localStorage.getItem(SAVE_KEY) || localStorage.getItem(LEGACY_3D_KEY); if (raw) S = JSON.parse(raw); } catch (e) {}
     if (S && S.v === 2) { this.S = S; this._applyLoaded(); return 'loaded'; }
     // Bring a cat over from the 2D prototype if there is one
     try {
       const old = JSON.parse(localStorage.getItem(OLD_SAVE_KEY) || 'null');
       if (old && old.v === 1 && old.name) {
-        const coat = WR.COATS[old.coat] ? old.coat : 'orange';
+        const coat = VPC.COATS[old.coat] ? old.coat : 'orange';
         const traits = (old.traits || []).filter(t => TRAITS[t]);
         this.newCat(old.name, coat, traits.length === 2 ? traits : rollTraits());
         this.S.bond = clamp(old.stats && old.stats.bond || 15);
@@ -112,7 +113,7 @@ class Sim {
     } catch (e) {}
     return null;
   }
-  reset() { try { localStorage.removeItem(SAVE_KEY); localStorage.removeItem(OLD_SAVE_KEY); } catch (e) {} this.S = null; }
+  reset() { try { for (const k of [SAVE_KEY, LEGACY_3D_KEY, OLD_SAVE_KEY]) localStorage.removeItem(k); } catch (e) {} this.S = null; }
   _applyLoaded() {
     const S = this.S, K = this.K;
     K.x = S.cat.x; K.z = S.cat.z; K.h = S.cat.h; K.at = S.cat.at || null;
@@ -1154,6 +1155,6 @@ class Sim {
   }
 }
 
-WR.Sim = Sim;
-WR.ZONES = ZONES;
+VPC.Sim = Sim;
+VPC.ZONES = ZONES;
 })();

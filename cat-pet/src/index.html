@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Whisker Room</title>
+<title>Virtual Pet Cat</title>
 <style>
 :root{
   --glass:rgba(255,250,243,.88); --ink:#3a2f2a; --muted:#857669; --line:rgba(120,95,70,.18);
@@ -126,23 +126,23 @@ select option{color:#222}
 </style>
 </head>
 <body>
-<div id="boot"><div class="card"><b>🐾 Loading Whisker Room…</b><p id="bootMsg">If this message doesn’t go away, open this file in a web browser (Chrome, Safari, Firefox or Edge). File previews, like a phone’s file viewer or GitHub’s code view, don’t run games.</p></div></div>
+<div id="boot"><div class="card"><b>🐾 Loading Virtual Pet Cat…</b><p id="bootMsg">If this message doesn’t go away, open this file in a web browser (Chrome, Safari, Firefox or Edge). File previews, like a phone’s file viewer or GitHub’s code view, don’t run games.</p></div></div>
 <script>
   // Show a clear message instead of a blank page if something goes wrong while starting up
-  window.WR_bootFail = function (msg) {
+  window.VPC_bootFail = function (msg) {
     var b = document.getElementById('boot'), m = document.getElementById('bootMsg');
     if (!b || !m) return;
     b.className = 'fail'; b.style.display = 'flex';
-    b.querySelector('b').textContent = '😿 Whisker Room couldn\u2019t start';
+    b.querySelector('b').textContent = '😿 Virtual Pet Cat couldn\u2019t start';
     m.textContent = msg;
   };
   window.addEventListener('error', function (e) {
-    if (window.WR_started) return;
+    if (window.VPC_started) return;
     var t = e.target;
-    if (t && t.tagName === 'SCRIPT') WR_bootFail('A game file (' + (t.getAttribute('src') || 'script') + ') is missing. Open cat-pet/index.html instead: it is a single file with everything built in.');
-    else WR_bootFail('Error: ' + (e.message || 'unknown') + '. Try reloading, or a different browser.');
+    if (t && t.tagName === 'SCRIPT') VPC_bootFail('A game file (' + (t.getAttribute('src') || 'script') + ') is missing. Open cat-pet/index.html instead: it is a single file with everything built in.');
+    else VPC_bootFail('Error: ' + (e.message || 'unknown') + '. Try reloading, or a different browser.');
   }, true);
-  setTimeout(function () { if (!window.WR_started) WR_bootFail('The game didn\u2019t start. If you opened this file in a preview (like a phone\u2019s file viewer or GitHub\u2019s code view), open it in a web browser such as Chrome, Safari, Firefox or Edge instead.'); }, 8000);
+  setTimeout(function () { if (!window.VPC_started) VPC_bootFail('The game didn\u2019t start. If you opened this file in a preview (like a phone\u2019s file viewer or GitHub\u2019s code view), open it in a web browser such as Chrome, Safari, Firefox or Edge instead.'); }, 8000);
 </script>
 <canvas id="scene" tabindex="0" aria-label="3D room with your cat"></canvas>
 
