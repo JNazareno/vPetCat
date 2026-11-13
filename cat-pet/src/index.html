@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Whisker Room</title>
+<style>
+:root{
+  --glass:rgba(255,250,243,.88); --ink:#3a2f2a; --muted:#857669; --line:rgba(120,95,70,.18);
+  --accent:#e0794a; --accent-ink:#fff; --good:#5fae6e; --warn:#e3b341; --bad:#d9534f; --bg:#e9dcc9;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){ --glass:rgba(36,31,27,.88); --ink:#f1e7dc; --muted:#ab9c8f; --line:rgba(255,235,210,.12); --accent:#f08a5a; --bg:#1b1714; }
+}
+:root[data-theme="dark"]{ --glass:rgba(36,31,27,.88); --ink:#f1e7dc; --muted:#ab9c8f; --line:rgba(255,235,210,.12); --accent:#f08a5a; --bg:#1b1714; }
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden}
+body{background:var(--bg);color:var(--ink);font:14px/1.35 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
+#scene{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none;outline:none}
+#scene[data-tool="laser"],#scene[data-tool="wand"]{cursor:crosshair}
+#scene[data-tool="treat"]{cursor:copy}
+body.ouch #scene{filter:saturate(1.6) brightness(1.1)}
+
+.card{background:var(--glass);border:1px solid var(--line);border-radius:16px;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);box-shadow:0 4px 18px rgba(0,0,0,.12)}
+.hud-top{position:fixed;top:max(10px,env(safe-area-inset-top));left:10px;right:10px;display:flex;justify-content:space-between;gap:10px;pointer-events:none;align-items:flex-start;z-index:10}
+.hud-top>*{pointer-events:auto}
+body:not(.playing) .hud-top,body:not(.playing) .bottom{display:none}
+.who{padding:10px 14px;max-width:min(430px,60vw)}
+.who h1{margin:0;font-size:19px;display:flex;align-items:center;gap:6px}
+.who .sub{color:var(--muted);font-size:12px;margin-top:1px}
+.who .thought{font-size:13px;margin-top:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.clockbox{display:flex;flex-direction:column;gap:6px;align-items:flex-end}
+.rowc{display:flex;gap:6px;align-items:center;padding:6px;flex-wrap:wrap;justify-content:flex-end}
+.pill{font-weight:600;padding:4px 8px;white-space:nowrap}
+.ib{border:1px solid var(--line);background:transparent;color:var(--ink);border-radius:10px;padding:4px 8px;font:inherit;cursor:pointer;min-width:32px}
+.ib.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.speed{display:flex;gap:3px}
+
+.panel{position:fixed;right:10px;top:132px;width:300px;max-height:calc(100% - 250px);overflow:auto;padding:10px 12px;z-index:9;display:none}
+body.panel-open.playing .panel{display:block}
+.tabs{display:flex;gap:4px;margin-bottom:8px}
+.tab{flex:1;border:1px solid var(--line);background:transparent;color:var(--ink);border-radius:9px;padding:5px;font:inherit;font-size:12px;cursor:pointer}
+.tab.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.stat{display:grid;grid-template-columns:20px 54px 1fr 26px;gap:6px;align-items:center;margin:6px 0;font-size:12.5px}
+.stat em{font-style:normal;color:var(--muted);font-size:11px;text-align:right;font-variant-numeric:tabular-nums}
+.bar{height:9px;background:var(--line);border-radius:99px;overflow:hidden}
+.bar i{display:block;height:100%;width:50%;background:var(--good);border-radius:99px;transition:width .3s,background .3s}
+.bar i.mid{background:var(--warn)}.bar i.low{background:var(--bad)}.bar i.bond{background:#e57aa5}
+.bar i.stress{background:#9aa0b5}.bar i.stress.mid{background:var(--warn)}.bar i.stress.low{background:var(--bad)}
+.traits div{margin-bottom:6px;font-size:12.5px}
+.panel h4{margin:10px 0 6px;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.prefs{list-style:none;padding:0;margin:0;font-size:12.5px}
+.prefs li{display:flex;justify-content:space-between;gap:8px;padding:3px 0;border-bottom:1px dashed var(--line)}
+.muted{color:var(--muted)} .small{font-size:12px}
+.log{list-style:none;padding:0;margin:0;font-size:12.5px}
+.log li{padding:5px 0;border-bottom:1px dashed var(--line)}
+.log time{color:var(--muted);font-size:10.5px;margin-right:6px;font-variant-numeric:tabular-nums}
+
+.bottom{position:fixed;left:10px;right:10px;bottom:max(10px,env(safe-area-inset-bottom));display:flex;flex-direction:column;align-items:center;gap:6px;z-index:10;pointer-events:none}
+.bottom>*{pointer-events:auto}
+#hint{font-size:12px;color:var(--muted);padding:5px 12px;max-width:min(760px,100%);text-align:center}
+.toolbar{display:flex;gap:4px;padding:6px;overflow-x:auto;max-width:100%;scrollbar-width:thin}
+.tbtn{flex:none;display:flex;flex-direction:column;align-items:center;gap:1px;min-width:54px;padding:5px 6px;border-radius:11px;border:1px solid transparent;background:transparent;color:var(--ink);font:inherit;font-size:11px;cursor:pointer}
+.tbtn b{font-size:20px;line-height:1.1}
+.tbtn:hover{border-color:var(--line)}
+.tbtn.on{background:var(--accent);color:var(--accent-ink)}
+.tbtn:disabled{opacity:.4;cursor:not-allowed}
+.sep{flex:none;width:1px;background:var(--line);margin:4px 3px}
+
+#bubble{position:fixed;z-index:12;transform:translate(-50%,-100%);background:#fff;color:#3a2f2a;border-radius:14px;padding:5px 11px;font-weight:600;font-size:13.5px;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.18);pointer-events:none;opacity:0;transition:opacity .2s}
+#bubble.show{opacity:1}
+#bubble:after{content:"";position:absolute;left:50%;top:100%;margin-left:-6px;border:6px solid transparent;border-top-color:#fff}
+.float{position:fixed;z-index:12;pointer-events:none;font-weight:700;font-size:15px;transform:translate(-50%,-50%);animation:rise 1.5s ease-out forwards;text-shadow:0 1px 2px rgba(255,255,255,.8);white-space:nowrap}
+@keyframes rise{to{transform:translate(-50%,-260%);opacity:0}}
+#tip{position:fixed;z-index:13;transform:translate(14px,14px);background:rgba(30,24,20,.9);color:#fff;padding:5px 9px;border-radius:8px;font-size:12px;pointer-events:none;opacity:0;transition:opacity .12s;max-width:280px}
+#tip.show{opacity:1}
+#toast{position:fixed;left:50%;bottom:150px;transform:translateX(-50%);z-index:14;background:rgba(30,24,20,.92);color:#fff;padding:8px 14px;border-radius:12px;font-size:13px;opacity:0;transition:opacity .25s;pointer-events:none;max-width:min(560px,calc(100% - 32px));text-align:center}
+#toast.show{opacity:1}
+#panelToggle{display:none}
+#boot{position:fixed;inset:0;z-index:60;display:flex;align-items:center;justify-content:center;padding:16px;background:var(--bg)}
+#boot .card{max-width:420px;padding:20px;text-align:center}
+#boot b{font-size:18px}
+#boot p{color:var(--muted);margin:8px 0 0}
+#boot.fail p{color:var(--ink)}
+
+.modal{position:fixed;inset:0;display:none;z-index:30;padding:16px;pointer-events:none}
+.modal.open{display:flex}
+.modal.center{background:rgba(20,14,10,.45);align-items:center;justify-content:center;pointer-events:auto}
+.modal.side{justify-content:flex-end;align-items:center}
+.modal .card{pointer-events:auto;padding:18px;width:100%;max-width:400px;max-height:calc(100% - 20px);overflow:auto;background:var(--glass)}
+.modal h2{margin:0 0 4px;font-size:20px}
+.modal p{color:var(--muted);margin:0 0 12px}
+.swatches{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin:8px 0 12px}
+.swatch{border:2px solid var(--line);border-radius:12px;background:transparent;color:var(--ink);padding:6px 8px;cursor:pointer;font:inherit;font-size:12.5px;display:flex;align-items:center;gap:8px}
+.swatch .dot{width:18px;height:18px;border-radius:50%;border:1px solid rgba(0,0,0,.25);flex:none}
+.swatch.sel{border-color:var(--accent)}
+.traitbox{border:1px solid var(--line);border-radius:12px;padding:8px 10px;margin-bottom:12px;font-size:12.5px}
+.traitbox div+div{margin-top:4px}
+.field{display:flex;gap:8px;margin-bottom:12px}
+.field input{flex:1;min-width:0;padding:9px 11px;border-radius:10px;border:1px solid var(--line);background:transparent;color:var(--ink);font:inherit;user-select:text}
+.btn{padding:9px 15px;border-radius:10px;border:1px solid var(--line);background:transparent;color:var(--ink);font:inherit;font-weight:600;cursor:pointer}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.danger{color:var(--bad)}
+.row{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+label.set{display:flex;justify-content:space-between;align-items:center;margin:10px 0;gap:10px}
+select{padding:6px 8px;border-radius:8px;border:1px solid var(--line);background:transparent;color:var(--ink);font:inherit}
+select option{color:#222}
+.help ul{padding-left:18px;margin:0 0 12px}
+.help li{margin:5px 0}
+
+@media (max-width:720px){
+  .who{max-width:calc(100vw - 150px);padding:8px 10px}
+  .who h1{font-size:16px}
+  .who .thought{font-size:12px}
+  .rowc{padding:4px;gap:4px}
+  .ib{padding:3px 6px;min-width:28px}
+  .speed .ib{min-width:26px;padding:3px 4px;font-size:12px}
+  #panelToggle{display:inline-block}
+  .panel{left:10px;right:10px;width:auto;top:auto;bottom:130px;max-height:42vh}
+  #hint{display:none}
+  .tbtn{min-width:50px}
+  .modal.side{justify-content:center;align-items:flex-end}
+  .modal.side .card{max-height:58vh}
+  #toast{bottom:95px}
+}
+</style>
+</head>
+<body>
+<div id="boot"><div class="card"><b>🐾 Loading Whisker Room…</b><p id="bootMsg">If this message doesn’t go away, open this file in a web browser (Chrome, Safari, Firefox or Edge). File previews, like a phone’s file viewer or GitHub’s code view, don’t run games.</p></div></div>
+<script>
+  // Show a clear message instead of a blank page if something goes wrong while starting up
+  window.WR_bootFail = function (msg) {
+    var b = document.getElementById('boot'), m = document.getElementById('bootMsg');
+    if (!b || !m) return;
+    b.className = 'fail'; b.style.display = 'flex';
+    b.querySelector('b').textContent = '😿 Whisker Room couldn\u2019t start';
+    m.textContent = msg;
+  };
+  window.addEventListener('error', function (e) {
+    if (window.WR_started) return;
+    var t = e.target;
+    if (t && t.tagName === 'SCRIPT') WR_bootFail('A game file (' + (t.getAttribute('src') || 'script') + ') is missing. Open cat-pet/index.html instead: it is a single file with everything built in.');
+    else WR_bootFail('Error: ' + (e.message || 'unknown') + '. Try reloading, or a different browser.');
+  }, true);
+  setTimeout(function () { if (!window.WR_started) WR_bootFail('The game didn\u2019t start. If you opened this file in a preview (like a phone\u2019s file viewer or GitHub\u2019s code view), open it in a web browser such as Chrome, Safari, Firefox or Edge instead.'); }, 8000);
+</script>
+<canvas id="scene" tabindex="0" aria-label="3D room with your cat"></canvas>
+
+<div class="hud-top">
+  <div class="card who">
+    <h1><span id="moodEmoji">😺</span><span id="catName"></span></h1>
+    <div class="sub"><span id="stage"></span> · <span id="moodText"></span></div>
+    <div class="thought" id="thought"></div>
+  </div>
+  <div class="clockbox">
+    <div class="card rowc">
+      <span class="pill" id="clock">Day 1</span>
+      <span class="speed">
+        <button class="ib" data-speed="0" title="Pause">⏸</button>
+        <button class="ib" data-speed="1" title="Normal speed">1×</button>
+        <button class="ib" data-speed="4" title="Fast">4×</button>
+        <button class="ib" data-speed="15" title="Very fast">15×</button>
+      </span>
+    </div>
+    <div class="card rowc">
+      <span class="pill" title="Coins">🪙 <span id="coins">0</span></span>
+      <button class="ib" id="panelToggle" title="Needs and info">📊</button>
+      <button class="ib" id="soundBtn" title="Sound">🔊</button>
+      <button class="ib" id="helpBtn" title="How to play">?</button>
+      <button class="ib" id="settingsBtn" title="Settings">⚙️</button>
+    </div>
+  </div>
+</div>
+
+<aside class="card panel" id="panel">
+  <div class="tabs"><button class="tab on" data-tab="needs">Needs</button><button class="tab" data-tab="cat">Cat</button><button class="tab" data-tab="journal">Journal</button></div>
+  <div id="needs"></div>
+  <div id="panelBody" hidden></div>
+</aside>
+
+<div class="bottom">
+  <div class="card" id="hint"></div>
+  <div class="card toolbar" id="tools"></div>
+</div>
+
+<div id="bubble"></div>
+<div id="fx"></div>
+<div id="tip"></div>
+<div id="toast"></div>
+
+<!-- Adoption -->
+<div class="modal side" id="adopt">
+  <div class="card">
+    <h2>Adopt a cat</h2>
+    <p>Pick a coat and a name. Every cat has its own personality and its own favourite (and least favourite) places to be petted.</p>
+    <div class="swatches" id="swatches"></div>
+    <div class="traitbox" id="adoptTraits"></div>
+    <div class="field"><input id="adoptName" maxlength="16" placeholder="Name" aria-label="Cat name"><button class="btn" id="rollBtn" title="Roll a different personality">🎲</button></div>
+    <div class="row"><button class="btn primary" id="adoptBtn">Bring them home</button></div>
+  </div>
+</div>
+
+<!-- Help -->
+<div class="modal center help" id="help">
+  <div class="card">
+    <h2>How to care for your cat</h2>
+    <ul>
+      <li><b>Look around:</b> drag empty space to orbit, scroll or pinch to zoom. Double-click the cat to follow it.</li>
+      <li><b>Pet:</b> with ✋, stroke the cat. Each cat has favourite spots (chin, cheeks...). Find them in the <i>Cat</i> tab. Belly rubs are often a trap.</li>
+      <li><b>Read the signals:</b> a lashing tail and flattened ears mean stop, or you'll get swatted.</li>
+      <li><b>Pick up:</b> press and hold on the cat, then carry it. Drop it in the bed or on the sofa.</li>
+      <li><b>Play:</b> flick toys across the floor, use the 🔴 laser or the 🪶 feather wand. Catches earn 🪙.</li>
+      <li><b>Care:</b> click the bowls to refill them and the litter box to scoop it. A full box means accidents.</li>
+      <li><b>Time:</b> one real second is one game minute at 1×. The cat eats, naps in sunbeams, watches birds and lives its life on its own.</li>
+    </ul>
+    <div class="row"><button class="btn primary" data-close>Got it</button></div>
+  </div>
+</div>
+
+<!-- Settings -->
+<div class="modal center" id="settings">
+  <div class="card">
+    <h2>Settings</h2>
+    <label class="set">Theme <select id="theme"><option value="">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label>
+    <p style="font-size:13px">Progress saves in this browser. While you're away, time passes at a gentle pace (up to 8 game hours) and the journal tells you what happened.</p>
+    <div class="row"><button class="btn danger" id="resetBtn">Rehome &amp; start over</button><button class="btn primary" data-close>Done</button></div>
+  </div>
+</div>
+
+<script src="vendor/three.min.js"></script>
+<script src="js/world.js"></script>
+<script src="js/cat.js"></script>
+<script src="js/brain.js"></script>
+<script src="js/ui.js"></script>
+</body>
+</html>
