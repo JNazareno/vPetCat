@@ -419,8 +419,9 @@ class Sim {
     yield* this.wait(opts.prep != null ? opts.prep : big ? 0.45 : 0.2);
     this.wiggle = 0;
     this.pose('leap');
-    const x0 = K.x, y0 = K.y, z0 = K.z;
-    const apex = opts.apex != null ? opts.apex : Math.max(0.12, (y - y0 > 0 ? 0.22 : 0.1) + dist * 0.08);
+    const x0 = K.x, y0 = K.y, z0 = K.z, h0 = K.h;
+    const turn = opts.face != null ? angDiff(opts.face, h0) : 0;
+    const apex = opts.apex != null ? opts.apex : Math.max(0.12, (y - y0 > 0.3 ? 0.32 : y - y0 > 0 ? 0.22 : 0.1) + dist * 0.08);
     const dur = opts.dur || (0.34 + Math.sqrt(Math.abs(y - y0) + dist) * 0.22);
     this.inJump = true;
     let t = 0;
@@ -428,7 +429,10 @@ class Sim {
       const dt = yield;
       t = Math.min(1, t + dt / dur);
       K.x = x0 + (x - x0) * t; K.z = z0 + (z - z0) * t;
-      K.y = y0 + (y - y0) * t + apex * 4 * t * (1 - t);
+      // Upward jumps rise first and then travel across, so the cat clears the edge it's landing on
+      const vt = y > y0 + 0.2 ? 1 - (1 - t) * (1 - t) : t;
+      K.y = y0 + (y - y0) * vt + apex * 4 * t * (1 - t);
+      if (turn) K.h = h0 + turn * (t * t * (3 - 2 * t));
       K.speed = 0;
       if (opts.during) opts.during(t);
     }
@@ -452,7 +456,7 @@ class Sim {
     while (K.at && !chain.includes(K.at)) yield* this.descend();
     const startIdx = K.at ? chain.indexOf(K.at) + 1 : 0;
     if (!K.at) { const a = SPOTS[chain[0]].approach; yield* this.walkTo(a[0], a[1], Math.hypot(a[0] - K.x, a[1] - K.z) > 2.5 ? 0.75 : 0.5); }
-    for (let i = startIdx; i < chain.length; i++) { const p = SPOTS[chain[i]].pos; yield* this.jumpTo(p[0], p[1], p[2], chain[i]); }
+    for (let i = startIdx; i < chain.length; i++) { const sp = SPOTS[chain[i]], p = sp.pos; yield* this.jumpTo(p[0], p[1], p[2], chain[i], { face: sp.face }); }
   }
   *goToFloor(x, z, spd) {
     while (this.K.at) yield* this.descend();
@@ -580,11 +584,21 @@ class Sim {
     }
     if (this.has('tidy') || Math.random() < 0.3) yield* this.actGroom(rand(2, 4));
   }
-  *turnAround() {
-    const h0 = this.K.h; let turned = 0;
+  *turnAround() { yield* this.spin(Math.PI, 4.5); }
+  /* Turn in place around the middle of the body (not the hips), like a real cat */
+  *spin(angle, rate) {
+    const K = this.K, c = 0.13 * this.m.group.scale.x; // hips -> middle of the body
+    const cx = K.x + Math.sin(K.h) * c, cz = K.z + Math.cos(K.h) * c;
+    const h0 = K.h; let turned = 0;
     this.pose('stand');
-    while (turned < Math.PI) { const dt = yield; turned += dt * 4.5; this.K.h = h0 + turned; this.K.speed = 0.3; }
-    this.K.speed = 0;
+    while (turned < angle) {
+      const dt = yield;
+      turned = Math.min(angle, turned + dt * rate);
+      K.h = h0 + turned;
+      K.x = cx - Math.sin(K.h) * c; K.z = cz - Math.cos(K.h) * c;
+      K.speed = 0.3;
+    }
+    K.speed = 0;
   }
   /* Going outside the box: pee on something soft, poop right next to the box */
   *actAccident(kind, reason) {
@@ -653,10 +667,7 @@ class Sim {
       yield* this.wait(rand(2.5, 4));
       this.knead = 0;
     }
-    const h0 = this.K.h; let turned = 0;
-    this.pose('stand');
-    while (turned < Math.PI * 2) { const dt = yield; turned += dt * 4; this.K.h = h0 + turned; this.K.speed = 0.3; }
-    this.K.speed = 0;
+    if (!(this.K.at && SPOTS[this.K.at].narrow)) yield* this.spin(Math.PI * 2, 4);
     yield* this.wait(rand(1.5, 2.5), 'loaf');
     this.pose('sleep');
     this.asleep = true;
@@ -740,8 +751,9 @@ class Sim {
   *actLookout() {
     const w = this.w, N = this.S.needs;
     yield* this.goToSpot('sill');
-    yield* this.face(Math.PI);
+    yield* this.face(SPOTS.sill.face);
     this.pose('sit');
+    const outside = new T.Vector3(-0.8, 1.35, -4);
     let t = 0, chatter = 0, dur = rand(12, 26) * this.tm('look');
     while (t < dur) {
       const dt = yield; t += dt;
@@ -754,7 +766,7 @@ class Sim {
         else if (chatter < 1.0) this.pose('sit');
         dur = Math.max(dur, t + 2);
       } else {
-        this.look = null;
+        this.look = outside;
         N.fun = clamp(N.fun + 0.6 * dt);
         this.pose(t > 6 ? 'loaf' : 'sit');
       }
@@ -818,14 +830,13 @@ class Sim {
     yield* this.goToSpot('shelf');
     // Walk along the shelf toward the vase
     this.pose('walk');
-    while (Math.abs(this.K.x - 1.9) > 0.02) { const dt = yield; this.K.x += Math.sign(1.9 - this.K.x) * Math.min(0.3 * dt, Math.abs(1.9 - this.K.x)); this.K.h = Math.PI / 2; this.K.speed = 0.3; }
+    const vx = SPOTS.shelf.pos[0];
+    while (Math.abs(this.K.x - vx) > 0.02) { const dt = yield; this.K.x += Math.sign(vx - this.K.x) * Math.min(0.3 * dt, Math.abs(vx - this.K.x)); this.K.h = Math.PI / 2; this.K.speed = 0.3; }
     this.K.speed = 0;
     if (S.vaseBroken) { yield* this.wait(2, 'sit'); return; }
-    yield* this.face(this.headingToCamera());
     this.pose('sit'); this.look = w.camera.position;
     this.say('*maintains eye contact*', 1800);
     yield* this.wait(1.6);
-    yield* this.face(Math.PI / 2);
     this.look = w.vase.position;
     this.pose('swipe');
     yield* this.wait(0.7);
@@ -888,7 +899,7 @@ class Sim {
     const spot = pick(opts);
     this.act.thought = `Hanging out on the ${SPOTS[spot].label}`;
     yield* this.goToSpot(spot);
-    if (spot !== 'box') yield* this.face(this.headingToCamera() + rand(-0.8, 0.8));
+    if (!SPOTS[spot].narrow) yield* this.face(this.headingToCamera() + rand(-0.8, 0.8));
     yield* this.actRest(rand(8, 16));
   }
   *actSunbath(beam) {
@@ -1129,7 +1140,7 @@ class Sim {
   drop(x, z, spotId) {
     const K = this.K, S = this.S;
     let ty = 0;
-    if (spotId) { const p = SPOTS[spotId].pos; x = p[0]; ty = p[1]; z = p[2]; }
+    if (spotId) { const p = SPOTS[spotId].pos; x = p[0]; ty = p[1]; z = p[2]; if (SPOTS[spotId].face != null) K.h = SPOTS[spotId].face; }
     K.x = x; K.z = z; K.at = null;
     if (!spotId) this._push();
     const fromY = K.y;

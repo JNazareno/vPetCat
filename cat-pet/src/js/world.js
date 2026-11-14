@@ -11,8 +11,8 @@ const BOUNDS = { minX: -2.82, maxX: 2.82, minZ: -2.32, maxZ: 2.32 };
 const BLOCKERS = [
   { id: 'sofa',   x0: 0.05, x1: 2.55, z0: -2.5, z1: -1.52 },
   { id: 'tree',   x0: -2.72, x1: -1.98, z0: 1.26, z1: 1.94 },
-  { id: 'litter', x0: 2.12, x1: 2.8, z0: 1.68, z1: 2.26 },
-  { id: 'box',    x0: 2.1, x1: 2.72, z0: 0.24, z1: 0.76 },
+  { id: 'litter', x0: 1.94, x1: 2.9, z0: 1.53, z1: 2.37 },
+  { id: 'box',    x0: 1.93, x1: 2.87, z0: 0.16, z1: 0.84 },
   { id: 'plant',  x0: 2.45, x1: 2.95, z0: -0.85, z1: -0.35 },
   { id: 'lamp',   x0: -2.85, x1: -2.35, z0: -2.36, z1: -1.86 },
   { id: 'bowls',  x0: -2.82, x1: -2.46, z0: -0.48, z1: 0.42 },
@@ -22,13 +22,13 @@ const BLOCKERS = [
    `parent` is another spot it must be on first. */
 const SPOTS = {
   bed:    { pos: [-2.15, 0.075, -1.45], approach: [-1.62, -1.2], label: 'bed', comfort: 1.0 },
-  sofa:   { pos: [1.15, 0.45, -1.98], approach: [1.15, -1.22], label: 'sofa', comfort: 0.8 },
-  shelf:  { pos: [1.62, 1.57, -2.39], parent: 'sofa', label: 'shelf', comfort: 0 },
-  sill:   { pos: [-0.8, 0.98, -2.33], approach: [-0.8, -1.75], label: 'windowsill', comfort: 0.6 },
-  treeLow:{ pos: [-2.05, 0.625, 1.6], approach: [-1.55, 1.6], label: 'cat tree', comfort: 0.5 },
-  treeTop:{ pos: [-2.35, 1.175, 1.6], parent: 'treeLow', label: 'top of the cat tree', comfort: 0.75 },
-  box:    { pos: [2.41, 0.03, 0.5], approach: [1.85, 0.5], label: 'cardboard box', comfort: 0.9 },
-  litter: { pos: [2.46, 0.12, 1.97], approach: [1.86, 1.97], label: 'litter box', comfort: 0 },
+  sofa:   { pos: [0.95, 0.45, -1.72], approach: [0.95, -1.22], face: Math.PI / 2, narrow: true, label: 'sofa', comfort: 0.8 },
+  shelf:  { pos: [1.48, 1.57, -2.27], parent: 'sofa', face: Math.PI / 2, narrow: true, label: 'shelf', comfort: 0 },
+  sill:   { pos: [-0.8, 0.98, -2.2], approach: [-0.8, -1.6], face: Math.PI / 2, narrow: true, label: 'windowsill', comfort: 0.6 },
+  treeLow:{ pos: [-2.3, 0.625, 2.0], approach: [-1.58, 2.0], face: 1.2, label: 'cat tree', comfort: 0.5 },
+  treeTop:{ pos: [-2.35, 1.175, 1.6], approach: [-1.5, 1.6], face: 0.7, label: 'top of the cat tree', comfort: 0.75 },
+  box:    { pos: [2.27, 0.03, 0.5], approach: [1.5, 0.5], face: -Math.PI / 2, narrow: true, label: 'cardboard box', comfort: 0.9 },
+  litter: { pos: [2.5, 0.12, 1.95], approach: [1.36, 1.95], face: -Math.PI / 2, label: 'litter box', comfort: 0 },
 };
 // Floor-level points of interest
 const POINTS = {
@@ -229,7 +229,8 @@ class World {
     this._box(W.x1 - W.x0, 0.04, 0.08, frame, (W.x0 + W.x1) / 2, 1.55, fz);
     const glass = this._add(new T.PlaneGeometry(W.x1 - W.x0, W.y1 - W.y0), new T.MeshStandardMaterial({ color: 0xbfe3ff, transparent: true, opacity: 0.12, roughness: 0.05 }), (W.x0 + W.x1) / 2, (W.y0 + W.y1) / 2, fz - 0.01, null, { cast: false, surface: false });
     glass.renderOrder = 2;
-    const sill = this._box(1.62, 0.06, 0.34, frame, -0.8, 0.95, -2.36);
+    const sill = this._box(1.62, 0.06, 0.58, frame, -0.8, 0.95, -2.24);
+    for (const bx of [-1.45, -0.15]) this._box(0.05, 0.22, 0.44, frame, bx, 0.81, -2.29);
     this._interact(sill, { id: 'window', label: () => this.bird.visible ? 'A bird is visiting the window!' : 'Windowsill: a favourite lookout' });
 
     // Picture frame on the left wall
@@ -262,14 +263,14 @@ class World {
     this._interact(sofa, { id: 'sofa', label: () => 'Sofa' });
 
     /* Shelf + vase */
-    this._box(0.85, 0.04, 0.24, mat(0x9c7a58), 1.85, 1.55, -2.38);
+    this._box(1.05, 0.04, 0.44, mat(0x9c7a58), 1.78, 1.55, -2.28);
     const vase = this.vase = new T.Group();
     const vmat = mat(0x3f8f8a, { roughness: 0.35 });
     const vbody = new T.Mesh(new T.LatheGeometry([[0.0, 0], [0.07, 0.0], [0.09, 0.08], [0.07, 0.17], [0.035, 0.22], [0.045, 0.26], [0.0, 0.26]].map(p => new T.Vector2(p[0], p[1])), 20), vmat);
     vbody.castShadow = true; vase.add(vbody);
     const flower = new T.Mesh(new T.SphereGeometry(0.04, 10, 8), mat(0xf06292)); flower.position.y = 0.33; vase.add(flower);
     const stem = new T.Mesh(new T.CylinderGeometry(0.005, 0.005, 0.1), mat(0x4caf50)); stem.position.y = 0.28; vase.add(stem);
-    vase.position.set(2.08, 1.57, -2.39);
+    vase.position.set(2.17, 1.57, -2.3);
     s.add(vase);
     this.vaseHome = vase.position.clone();
 
@@ -279,10 +280,10 @@ class World {
     const tree = new T.Group(); s.add(tree);
     this._box(0.66, 0.06, 0.66, carpet, -2.35, 0.03, 1.6, tree);
     this._add(new T.CylinderGeometry(0.07, 0.07, 1.12, 16), mat(0xffffff, { map: sisal }), -2.35, 0.6, 1.6, tree);
-    this._add(new T.CylinderGeometry(0.26, 0.26, 0.05, 28), carpet, -2.1, 0.6, 1.6, tree);
+    this._add(new T.CylinderGeometry(0.28, 0.28, 0.05, 28), carpet, -2.33, 0.6, 1.95, tree);
     this._add(new T.CylinderGeometry(0.27, 0.27, 0.05, 28), carpet, -2.35, 1.15, 1.6, tree);
-    const dangle = new T.Mesh(new T.SphereGeometry(0.04, 10, 8), mat(0xffc84a)); dangle.position.set(-2.1, 0.42, 1.78); s.add(dangle);
-    const dstring = new T.Mesh(new T.CylinderGeometry(0.003, 0.003, 0.15), mat(0x444444)); dstring.position.set(-2.1, 0.5, 1.78); s.add(dstring);
+    const dangle = new T.Mesh(new T.SphereGeometry(0.04, 10, 8), mat(0xffc84a)); dangle.position.set(-2.12, 0.42, 2.12); s.add(dangle);
+    const dstring = new T.Mesh(new T.CylinderGeometry(0.003, 0.003, 0.15), mat(0x444444)); dstring.position.set(-2.12, 0.5, 2.12); s.add(dstring);
     this.dangle = dangle;
     this._interact(tree, { id: 'tree', label: () => 'Cat tree: climbing and scratching' });
 
@@ -332,12 +333,12 @@ class World {
     /* Litter box */
     const litter = new T.Group(); s.add(litter);
     const lm = mat(0x6fa58b, { roughness: 0.6 });
-    this._box(0.62, 0.04, 0.48, lm, 2.46, 0.02, 1.97, litter);
-    this._box(0.62, 0.17, 0.04, lm, 2.46, 0.085, 1.75, litter);
-    this._box(0.62, 0.17, 0.04, lm, 2.46, 0.085, 2.19, litter);
-    this._box(0.04, 0.17, 0.48, lm, 2.15, 0.085, 1.97, litter);
-    this._box(0.04, 0.17, 0.48, lm, 2.77, 0.085, 1.97, litter);
-    this._box(0.56, 0.08, 0.42, mat(0xe9dfc6, { roughness: 1 }), 2.46, 0.07, 1.97, litter, { cast: false });
+    this._box(0.92, 0.04, 0.8, lm, 2.42, 0.02, 1.95, litter);
+    this._box(0.92, 0.17, 0.04, lm, 2.42, 0.085, 1.57, litter);
+    this._box(0.92, 0.17, 0.04, lm, 2.42, 0.085, 2.33, litter);
+    this._box(0.04, 0.12, 0.8, lm, 1.98, 0.06, 1.95, litter);
+    this._box(0.04, 0.17, 0.8, lm, 2.86, 0.085, 1.95, litter);
+    this._box(0.84, 0.08, 0.72, mat(0xe9dfc6, { roughness: 1 }), 2.42, 0.07, 1.95, litter, { cast: false });
     this.poopGroup = new T.Group(); litter.add(this.poopGroup);
     this.clumpGroup = new T.Group(); litter.add(this.clumpGroup);
     this._interact(litter, { id: 'litter', label: () => {
@@ -350,12 +351,12 @@ class World {
     /* Cardboard box */
     const cb = mat(0xc89b62, { roughness: 1 });
     const box = new T.Group(); s.add(box);
-    this._box(0.56, 0.02, 0.46, cb, 2.41, 0.01, 0.5, box);
-    this._box(0.56, 0.3, 0.02, cb, 2.41, 0.15, 0.27, box);
-    this._box(0.56, 0.3, 0.02, cb, 2.41, 0.15, 0.73, box);
-    this._box(0.02, 0.3, 0.46, cb, 2.69, 0.15, 0.5, box);
-    this._box(0.02, 0.18, 0.46, cb, 2.13, 0.09, 0.5, box);
-    const flap = this._box(0.02, 0.2, 0.46, cb, 2.04, 0.26, 0.5, box); flap.rotation.z = 0.7;
+    this._box(0.9, 0.02, 0.64, cb, 2.4, 0.01, 0.5, box);
+    this._box(0.9, 0.3, 0.02, cb, 2.4, 0.15, 0.18, box);
+    this._box(0.9, 0.3, 0.02, cb, 2.4, 0.15, 0.82, box);
+    this._box(0.02, 0.3, 0.64, cb, 2.85, 0.15, 0.5, box);
+    this._box(0.02, 0.16, 0.64, cb, 1.95, 0.08, 0.5, box);
+    const flap = this._box(0.02, 0.2, 0.64, cb, 1.87, 0.24, 0.5, box); flap.rotation.z = 0.7;
     this._interact(box, { id: 'box', label: () => 'Cardboard box: the best toy money can buy' });
 
     /* Plant */
@@ -415,7 +416,7 @@ class World {
     const pm = mat(0x6b4a2b, { roughness: 0.9 });
     for (let i = 0; i < Math.min(poops, 6); i++) {
       const p = new T.Mesh(new T.CapsuleGeometry(0.018, 0.04, 4, 8), pm);
-      p.position.set(2.3 + (i % 3) * 0.13, 0.12, 1.85 + Math.floor(i / 3) * 0.2 + (i % 2) * 0.04);
+      p.position.set(2.12 + (i % 3) * 0.15, 0.12, 1.78 + Math.floor(i / 3) * 0.24 + (i % 2) * 0.04);
       p.rotation.set(Math.PI / 2, 0, i * 1.3);
       p.castShadow = true;
       g.add(p);
@@ -424,7 +425,7 @@ class World {
     for (let i = 0; i < Math.min(clumps, 8); i++) {
       const c = new T.Mesh(new T.SphereGeometry(0.045, 10, 8), cm);
       c.scale.set(1 + (i % 3) * 0.2, 0.35, 0.9);
-      c.position.set(2.62 - (i % 4) * 0.1, 0.112, 2.08 - Math.floor(i / 4) * 0.22 - (i % 2) * 0.03);
+      c.position.set(2.72 - (i % 4) * 0.12, 0.112, 2.12 - Math.floor(i / 4) * 0.26 - (i % 2) * 0.03);
       c.rotation.y = i * 0.9;
       cg.add(c);
     }
@@ -600,7 +601,7 @@ class World {
       this.bird.position.y = 0.99 + Math.max(0, Math.sin(t * 7)) * 0.02;
       this.bird.rotation.y = 0.3 + Math.sin(t * 1.3) * 0.6;
     }
-    if (this.dangle) { const t = performance.now() / 1000; this.dangle.position.x = -2.1 + Math.sin(t * 1.7) * 0.012; }
+    if (this.dangle) { const t = performance.now() / 1000; this.dangle.position.x = -2.12 + Math.sin(t * 1.7) * 0.012; }
     this._updateStink(dt);
   }
   _physics(p, v, r, dt, rest, fric) {
