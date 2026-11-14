@@ -209,11 +209,6 @@ function fmtClock(S) {
   return `${String(h).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
 }
 function fmtLogTime(c) { const m = Math.floor(c % 1440); return `D${Math.floor(c / 1440) + 1} ${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`; }
-function ageText(S) {
-  const days = (S.clock - S.born) / 1440;
-  const weeks = days * 8; // one game day = ~8 cat weeks
-  return weeks < 52 ? `${Math.floor(weeks)} wks old` : `${(weeks / 52).toFixed(1)} yrs old`;
-}
 function renderHUD() {
   const S = sim.S; if (!S) return;
   const N = S.needs;
@@ -225,7 +220,7 @@ function renderHUD() {
   $('moodEmoji').textContent = emo; $('moodText').textContent = mood;
   $('catName').textContent = S.name;
   $('thought').textContent = '💭 ' + sim.thought();
-  $('stage').textContent = `${sim.stage().label} · ${ageText(S)}`;
+  $('stage').textContent = `${sim.stage().label} · ${sim.ageText()}`;
   $('coins').textContent = S.coins;
   const hr = sim.hour();
   $('clock').textContent = `${hr >= 6 && hr < 18 ? '☀️' : hr >= 18 && hr < 21 ? '🌇' : '🌙'} Day ${sim.day()} · ${fmtClock(S)}`;

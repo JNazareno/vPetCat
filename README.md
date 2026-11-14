@@ -15,7 +15,7 @@ If the game can't start, for example because 3D graphics (WebGL) are turned off 
 - **Day/night cycle:** 1 real second = 1 game minute at 1×. You can pause or run at 4× or 15×. Real sunlight comes through the window, so the sunbeam moves across the floor during the day and the cat seeks it out. At night you can switch on the lamp.
 - **Bathroom habits:** separate bladder and bowel urges (drinking fills one, eating the other). The cat sniffs the box, digs, turns around, squats (a quick pee or a longer hunched poop), then buries it, unless it can't be bothered. Some cats get post-poop zoomies. Pee clumps and poops pile up in the box until you scoop them, and smell wisps rise from a dirty box or anything left on the floor.
 - **Consequences:** a dirty litter box leads to accidents: pee on the rug or even the bed, poop right next to the box. Very stressed cats sometimes go outside the box even when it's clean. Skipped brushing leads to hairballs. A neglected cat loses bond and gains stress. There's a daily recap with an allowance based on how the day went.
-- **Growth:** kitten → junior → adult, and the model grows with it.
+- **Growth:** kitten → junior → adult, and the model grows with it. The kitten arrives at 8 weeks old and each game day is about 2 months of its life (junior by day 3, adult by day 6).
 - **Persistence:** saves in the browser. Time passes gently while you're away, and the journal tells you what happened. A cat from the earlier 2D prototype is carried over automatically.
 
 ## Interacting
