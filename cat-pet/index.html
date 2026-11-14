@@ -155,7 +155,7 @@ select option{color:#222}
   </div>
   <div class="clockbox">
     <div class="card rowc">
-      <span class="pill" id="clock">Day 1</span>
+      <span class="pill" id="clock" title="Each game day is about 2 months of your cat’s life">Day 1</span>
       <span class="speed">
         <button class="ib" data-speed="0" title="Pause">⏸</button>
         <button class="ib" data-speed="1" title="Normal speed">1×</button>
@@ -213,6 +213,7 @@ select option{color:#222}
       <li><b>Play:</b> flick toys across the floor, use the 🔴 laser or the 🪶 feather wand. Catches earn 🪙.</li>
       <li><b>Care:</b> click the bowls to refill them and the litter box to scoop it. A full box means accidents.</li>
       <li><b>Time:</b> one real second is one game minute at 1×. The cat eats, naps in sunbeams, watches birds and lives its life on its own.</li>
+      <li><b>Growing up:</b> time flies for cats. Your kitten arrives at 8 weeks old, and each game day is about 2 months of its life: a junior by day 3, an adult by day 6.</li>
     </ul>
     <div class="row"><button class="btn primary" data-close>Got it</button></div>
   </div>
@@ -1475,6 +1476,15 @@ class Sim {
   }
   has(t) { return this.S.traits.includes(t); }
   stage() { const d = (this.S.clock - this.S.born) / 1440; return STAGES.find(s => d < s.until); }
+  /* Cats grow up fast here: they arrive at 8 weeks old and each game day is 8 weeks (about 2 months) of their life */
+  ageWeeks() { return 8 + ((this.S.clock - this.S.born) / 1440) * 8; }
+  ageText() {
+    const w = this.ageWeeks();
+    if (w < 12) return `${Math.floor(w)} wks old`;
+    if (w < 52) { const m = Math.floor(w / 4.345); return `${m} month${m === 1 ? '' : 's'} old`; }
+    const y = w / 52;
+    return y < 1.05 ? '1 year old' : `${y.toFixed(1)} yrs old`;
+  }
   hour() { return (this.S.clock % 1440) / 60; }
   day() { return Math.floor(this.S.clock / 1440) + 1; }
   isNight() { const h = this.hour(); return h < 6 || h >= 21.5; }
@@ -1595,7 +1605,7 @@ class Sim {
     const coins = Math.round(mood / 10 + S.bond / 15);
     S.coins += coins;
     const word = mood > 75 ? 'a great day' : mood > 55 ? 'a good day' : mood > 40 ? 'an okay day' : 'a rough day';
-    this.log(`📅 Day ${dayNum} recap: ${S.name} had ${word}. ${d.meals} meals, slept ${Math.round(d.sleep / 60)} h, played ${Math.round(d.play)} min, ${d.pets} pets, ${d.pees || 0} pees and ${d.poops || 0} poops${d.accidents ? ` (${d.accidents} outside the box)` : ''}. Allowance +${coins} 🪙`);
+    this.log(`📅 Day ${dayNum} recap: ${S.name} had ${word}. ${d.meals} meals, slept ${Math.round(d.sleep / 60)} h, played ${Math.round(d.play)} min, ${d.pets} pets, ${d.pees || 0} pees and ${d.poops || 0} poops${d.accidents ? ` (${d.accidents} outside the box)` : ''}. Allowance +${coins} 🪙. ${S.name} is now ${this.ageText()}.`);
     S.day = this._newDay();
   }
   _world(dt) {
@@ -2810,11 +2820,6 @@ function fmtClock(S) {
   return `${String(h).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
 }
 function fmtLogTime(c) { const m = Math.floor(c % 1440); return `D${Math.floor(c / 1440) + 1} ${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`; }
-function ageText(S) {
-  const days = (S.clock - S.born) / 1440;
-  const weeks = days * 8; // one game day = ~8 cat weeks
-  return weeks < 52 ? `${Math.floor(weeks)} wks old` : `${(weeks / 52).toFixed(1)} yrs old`;
-}
 function renderHUD() {
   const S = sim.S; if (!S) return;
   const N = S.needs;
@@ -2826,7 +2831,7 @@ function renderHUD() {
   $('moodEmoji').textContent = emo; $('moodText').textContent = mood;
   $('catName').textContent = S.name;
   $('thought').textContent = '💭 ' + sim.thought();
-  $('stage').textContent = `${sim.stage().label} · ${ageText(S)}`;
+  $('stage').textContent = `${sim.stage().label} · ${sim.ageText()}`;
   $('coins').textContent = S.coins;
   const hr = sim.hour();
   $('clock').textContent = `${hr >= 6 && hr < 18 ? '☀️' : hr >= 18 && hr < 21 ? '🌇' : '🌙'} Day ${sim.day()} · ${fmtClock(S)}`;

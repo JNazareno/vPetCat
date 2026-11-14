@@ -151,6 +151,15 @@ class Sim {
   }
   has(t) { return this.S.traits.includes(t); }
   stage() { const d = (this.S.clock - this.S.born) / 1440; return STAGES.find(s => d < s.until); }
+  /* Cats grow up fast here: they arrive at 8 weeks old and each game day is 8 weeks (about 2 months) of their life */
+  ageWeeks() { return 8 + ((this.S.clock - this.S.born) / 1440) * 8; }
+  ageText() {
+    const w = this.ageWeeks();
+    if (w < 12) return `${Math.floor(w)} wks old`;
+    if (w < 52) { const m = Math.floor(w / 4.345); return `${m} month${m === 1 ? '' : 's'} old`; }
+    const y = w / 52;
+    return y < 1.05 ? '1 year old' : `${y.toFixed(1)} yrs old`;
+  }
   hour() { return (this.S.clock % 1440) / 60; }
   day() { return Math.floor(this.S.clock / 1440) + 1; }
   isNight() { const h = this.hour(); return h < 6 || h >= 21.5; }
@@ -271,7 +280,7 @@ class Sim {
     const coins = Math.round(mood / 10 + S.bond / 15);
     S.coins += coins;
     const word = mood > 75 ? 'a great day' : mood > 55 ? 'a good day' : mood > 40 ? 'an okay day' : 'a rough day';
-    this.log(`📅 Day ${dayNum} recap: ${S.name} had ${word}. ${d.meals} meals, slept ${Math.round(d.sleep / 60)} h, played ${Math.round(d.play)} min, ${d.pets} pets, ${d.pees || 0} pees and ${d.poops || 0} poops${d.accidents ? ` (${d.accidents} outside the box)` : ''}. Allowance +${coins} 🪙`);
+    this.log(`📅 Day ${dayNum} recap: ${S.name} had ${word}. ${d.meals} meals, slept ${Math.round(d.sleep / 60)} h, played ${Math.round(d.play)} min, ${d.pets} pets, ${d.pees || 0} pees and ${d.poops || 0} poops${d.accidents ? ` (${d.accidents} outside the box)` : ''}. Allowance +${coins} 🪙. ${S.name} is now ${this.ageText()}.`);
     S.day = this._newDay();
   }
   _world(dt) {
