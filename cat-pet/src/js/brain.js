@@ -1027,7 +1027,7 @@ class Sim {
   }
 
   /* ---------- player interactions ---------- */
-  canInteract() { return !(this.act && ['carried', 'swat', 'zoomies', 'bath'].includes(this.act.name)) && !this.inJump; }
+  canInteract() { return !(this.act && ['carried', 'swat', 'zoomies'].includes(this.act.name)) && !this.inJump; }
   pet(zone) {
     const S = this.S, N = S.needs;
     if (!this.canInteract()) return null;
@@ -1167,22 +1167,57 @@ class Sim {
       else yield* self.actRest(rand(2, 4));
     })(), 'Landing', 1);
   }
+  /* How well this cat puts up with a bath right now (0 = hates it, 1 = fine) */
+  bathTolerance() {
+    const S = this.S;
+    let t = 0.35 + S.bond / 250 + Math.min(0.3, (S.baths || 0) * 0.06);
+    if (this.has('cuddly')) t += 0.2;
+    if (this.has('aloof')) t -= 0.2;
+    if (S.clock - (S.lastBath ?? -1e9) < 1440) t -= 0.3; // bathed again within a game day
+    return clamp(t, 0, 1);
+  }
   bath() {
     const S = this.S, N = S.needs;
     if (this.act && this.act.name === 'carried') return;
-    N.hygiene = 100; N.fun = clamp(N.fun - 20); S.bond = clamp(S.bond - 4); S.stress = clamp(S.stress + 35);
-    this.h.sound('hiss');
-    this.say(pick(['BETRAYAL.', 'MRAAOOW!', 'I will remember this.']), 2400);
-    this.log(`You gave ${S.name} a bath. Squeaky clean. Deeply offended. Now hiding in the box.`);
+    const tol = this.bathTolerance();
+    const mood = tol >= 0.6 ? 'calm' : tol >= 0.35 ? 'grumpy' : 'upset';
+    S.baths = (S.baths || 0) + 1; S.lastBath = S.clock;
+    N.hygiene = 100;
+    const cost = { calm: [2, 4, 0], grumpy: [5, 10, 1], upset: [8, 18, 2] }[mood]; // fun, stress, bond
+    N.fun = clamp(N.fun - cost[0]); S.stress = clamp(S.stress + cost[1]); S.bond = clamp(S.bond - cost[2]);
+    this.log({
+      calm: `You gave ${S.name} a bath. ${S.name} put up with it remarkably well.`,
+      grumpy: `You gave ${S.name} a bath. Clean, but clearly unimpressed.`,
+      upset: `You gave ${S.name} a bath. ${S.name} didn't enjoy it and is keeping their distance for a bit.`,
+    }[mood]);
     this.K.at = null; this.K.y = 0;
+    this.m.setWet(1);
     this.start('bath', (function* (self) {
-      self.pose('angry'); self.m.pose.puff = 1;
-      yield* self.wait(1.2);
-      yield* self.goToSpot('box');
-      self.pose('loaf');
-      yield* self.wait(rand(15, 25), 'loaf', () => { self.m.target.earBack = 0.6; });
-      yield* self.actGroom(6);
-    })(this), 'Hiding after the bath', 4);
+      // Shake off the water
+      self.pose('stand'); self.h.sound('water');
+      self.fx('💦', '#4aa3df');
+      yield* self.wait(0.9, 'stand', (dt, t) => { self.m.pose.roll = Math.sin(t * 32) * 0.35 * (1 - t / 0.9); self.m.pose.headRoll = Math.sin(t * 32 + 1) * 0.3 * (1 - t / 0.9); });
+      self.m.pose.roll = 0; self.m.pose.headRoll = 0;
+      if (mood === 'calm') {
+        self.say(pick(['Mrrp.', '…okay.', '*shakes a paw*']), 1400);
+        yield* self.wait(rand(1.5, 2.5), 'sit');
+      } else if (mood === 'grumpy') {
+        self.say(pick(['Mrrf.', 'Hmph.', '*flicks tail*']), 1500); self.h.sound('grumble');
+        // Sits with its back to you for a moment
+        yield* self.face(self.headingToCamera() + Math.PI);
+        self.lashT = 1.5;
+        yield* self.wait(rand(4, 7), 'sit', () => { self.m.target.earBack = 0.5; });
+      } else {
+        self.say(pick(['Mrrrow!', 'Not again…', '*grumbles*']), 1600); self.h.sound('grumble');
+        self.lashT = 2;
+        const a = self.headingToCamera() + Math.PI + rand(-0.6, 0.6);
+        yield* self.walkTo(self.K.x + Math.sin(a) * 1.1, self.K.z + Math.cos(a) * 1.1, 0.7);
+        yield* self.wait(rand(3, 5), 'sit', () => { self.m.target.earBack = 0.4; });
+      }
+      // Every cat tidies its fur after a bath
+      self.act.thought = 'Grooming after the bath';
+      yield* self.actGroom(rand(4, 6));
+    })(this), mood === 'calm' ? 'Drying off' : mood === 'grumpy' ? 'Unimpressed by the bath' : 'Not happy about that bath', 2);
   }
   catnip() {
     const S = this.S;

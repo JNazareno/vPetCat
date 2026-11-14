@@ -25,12 +25,13 @@ body.ouch #scene{filter:saturate(1.6) brightness(1.1)}
 .hud-top{position:fixed;top:max(10px,env(safe-area-inset-top));left:10px;right:10px;display:flex;justify-content:space-between;gap:10px;pointer-events:none;align-items:flex-start;z-index:10}
 .hud-top>*{pointer-events:auto}
 body:not(.playing) .hud-top,body:not(.playing) .bottom{display:none}
-.who{padding:10px 14px;max-width:min(430px,60vw)}
-.who h1{margin:0;font-size:19px;display:flex;align-items:center;gap:6px}
+.who{padding:10px 14px;max-width:min(430px,60vw);min-width:0;flex:0 1 auto}
+.who h1{margin:0;font-size:19px;display:flex;align-items:center;gap:6px;min-width:0}
+.who h1 #catName,.who .sub{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .who .sub{color:var(--muted);font-size:12px;margin-top:1px}
 .who .thought{font-size:13px;margin-top:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.clockbox{display:flex;flex-direction:column;gap:6px;align-items:flex-end}
-.rowc{display:flex;gap:6px;align-items:center;padding:6px;flex-wrap:wrap;justify-content:flex-end}
+.clockbox{display:flex;flex-direction:column;gap:6px;align-items:flex-end;flex:none}
+.rowc{display:flex;gap:6px;align-items:center;padding:6px;flex-wrap:nowrap;justify-content:flex-end}
 .pill{font-weight:600;padding:4px 8px;white-space:nowrap}
 .ib{border:1px solid var(--line);background:transparent;color:var(--ink);border-radius:10px;padding:4px 8px;font:inherit;cursor:pointer;min-width:32px}
 .ib.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
@@ -124,6 +125,12 @@ select option{color:#222}
   .modal.side{justify-content:center;align-items:flex-end}
   .modal.side .card{max-height:58vh}
   #toast{bottom:95px}
+}
+@media (max-width:390px){
+  /* Very narrow phones: the name card gets its own full-width row, with the clock and buttons underneath */
+  .hud-top{flex-wrap:wrap}
+  .who{max-width:none;flex:1 1 100%}
+  .clockbox{margin-left:auto}
 }
 </style>
 </head>

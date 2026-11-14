@@ -261,6 +261,8 @@ class CatModel {
 
     g.scale.setScalar(this.scale || 1.3);
   }
+  /* 0..1: fur looks darker and glossier while wet, drying over about a game hour */
+  setWet(k) { this.wet = k; }
   setScale(s) { this.scale = s; this.group.scale.setScalar(s); }
   setPose(name) {
     if (!POSES[name]) name = 'stand';
@@ -359,6 +361,11 @@ class CatModel {
     this.mouthMesh.position.y = 0.008 - P.mouth * 0.006;
 
     // Tail
+    if (this.wet > 0) {
+      this.wet = Math.max(0, this.wet - dt / 60);
+      this.furMat.color.setRGB(1 - 0.28 * this.wet, 1 - 0.28 * this.wet, 1 - 0.24 * this.wet);
+      this.furMat.roughness = 0.92 - 0.45 * this.wet;
+    }
     const n = this.tail.length;
     const lash = ctx.lash || 0;
     const swayAmp = 0.22 + lash * 0.5 + this.walk * 0.08;
