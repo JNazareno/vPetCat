@@ -115,6 +115,8 @@ select option{color:#222}
   .rowc{padding:4px;gap:4px}
   .ib{padding:3px 6px;min-width:28px}
   .speed .ib{min-width:26px;padding:3px 4px;font-size:12px}
+  /* Stack the clock above the speed buttons so the card hugs its contents instead of leaving a gap */
+  .clockbox .rowc:first-child{flex-direction:column;align-items:flex-end;flex-wrap:nowrap;gap:4px}
   #panelToggle{display:inline-block}
   .panel{left:10px;right:10px;width:auto;top:auto;bottom:130px;max-height:42vh}
   #hint{display:none}
