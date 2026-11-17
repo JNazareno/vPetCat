@@ -741,6 +741,12 @@ class CatModel {
       return 'back';
     }
     if (z === 'rump') return 'rump';
+    if (z === 'tail') {
+      // The first stretch of the tail counts as "base of the tail" (the rump zone)
+      const root = this.tail[0].g.getWorldPosition(new T.Vector3());
+      if (hit.point.distanceTo(root) < 0.075 * this.group.scale.x) return 'rump';
+      return 'tail';
+    }
     if (z === 'leg' || z === 'paws') return 'paws';
     return z;
   }
