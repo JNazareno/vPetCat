@@ -41,7 +41,7 @@ python3 cat-pet/build.py
 You can also open `cat-pet/src/index.html` directly while developing.
 
 - `src/js/world.js`: room, furniture, lighting and sun, outside scenery, toy/treat/vase physics, camera, raycasting
-- `src/js/cat.js`: procedural cat model (coat patterns painted into vertex colours), pose blending, gait, tail, blinking, petting zones
+- `src/js/cat.js`: procedural cat model: a sculpted torso and head, jointed legs placed with inverse kinematics (digitigrade back legs with hocks), a seamless tail, textured eyes, fur material with sheen, coat patterns painted into vertex colours; pose blending, walking and galloping gaits, blinking, petting zones
 - `src/js/brain.js`: needs, utility AI, activities written as generators, player interactions, save/load and offline catch-up
 - `src/js/ui.js`: HUD, tools and input (pet, carry, throw, laser, wand), synthesized sound (purring, meows, hisses...), main loop
 

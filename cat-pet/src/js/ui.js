@@ -652,6 +652,7 @@ function frame(now) {
     model.update(realDt, {});
     if (lastTime < 0) { world.setTime(10); lastTime = 10; }
   }
+  if (sim.S || !started) world.updateContactShadow(model.group.position.x, model.group.position.y, model.group.position.z, model.group.scale.x * 0.42, model.group.rotation.y);
   world.updateCamera(realDt);
   // Speech bubble follows the head
   if (bubble.classList.contains('show')) {
