@@ -403,21 +403,29 @@ class CatModel {
       this.eyes.push({ g: eg, iris, pupil, lid, cornea });
     }
 
-    // Ears: solid, flattened cones (real thickness, closed edges) with the base sunk into the head,
-    // and a thin pink inner ear laid along the front face
-    const earG = paint(new T.ConeGeometry(0.035, 0.062, 24, 4, false), coat, 'ear', seed);
-    earG.translate(0, 0.031, 0);
-    const innerG = new T.ConeGeometry(0.0235, 0.045, 24, 2, false);
-    innerG.translate(0, 0.0225, 0);
-    const innerMat = new T.MeshStandardMaterial({ color: coat.pattern === 'point' ? 0x6b5040 : 0xc9a29e, roughness: 0.9 });
-    const depth = 0.5, faceSlope = Math.atan((0.035 * depth) / 0.062);
+    // Ears: solid, flattened cones (real thickness, closed edges) with the base sunk into the head.
+    // The pink inner ear is painted onto the front face, fading into a soft rim of fur at the edges.
+    const EAR_R = 0.035, EAR_H = 0.062;
+    const earG = paint(new T.ConeGeometry(EAR_R, EAR_H, 28, 6, false), coat, 'ear', seed);
+    earG.translate(0, EAR_H / 2, 0);
+    {
+      const pos = earG.attributes.position, col = earG.attributes.color;
+      const pink = new T.Color(coat.pattern === 'point' ? 0x6b5040 : 0xc9a29e), c = new T.Color(), deep = new T.Color();
+      for (let i = 0; i < pos.count; i++) {
+        const y = pos.getY(i), z = pos.getZ(i), r = EAR_R * (1 - y / EAR_H);
+        const front = r > 1e-4 ? z / r : 0;                       // 1 at the middle of the front face, 0 at the side edges
+        const amt = ss(0.3, 0.62, front) * ss(0.95, 0.78, y / EAR_H);
+        if (amt <= 0) continue;
+        c.setRGB(col.getX(i), col.getY(i), col.getZ(i));
+        deep.copy(pink).multiplyScalar(1 - 0.22 * ss(0.65, 1, front) * ss(0.7, 0.2, y / EAR_H)); // a little darker deep inside
+        c.lerp(deep, amt);
+        col.setXYZ(i, c.r, c.g, c.b);
+      }
+    }
     this.ears = [];
     for (const s of [-1, 1]) {
       const pivot = new T.Group(); pivot.position.set(s * 0.05, 0.091, 0.024); head.add(pivot);
-      const ear = pick(new T.Mesh(earG, fur), 'head'); ear.scale.set(1, 1, depth); pivot.add(ear);
-      const inner = new T.Mesh(innerG, innerMat);
-      inner.scale.set(1, 1, 0.16); inner.position.set(0, 0.008, 0.0142); inner.rotation.x = -faceSlope;
-      pivot.add(inner);
+      const ear = pick(new T.Mesh(earG, fur), 'head'); ear.scale.set(1, 1, 0.5); pivot.add(ear);
       pivot.rotation.z = -s * 0.36;
       this.ears.push({ pivot, side: s });
     }
