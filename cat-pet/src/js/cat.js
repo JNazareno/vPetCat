@@ -403,17 +403,30 @@ class CatModel {
       this.eyes.push({ g: eg, iris, pupil, lid, cornea });
     }
 
-    // Ears: cupped shells, fur outside and pink inside
-    const earG = paint(new T.ConeGeometry(0.034, 0.058, 18, 1, true, Math.PI / 2 - 0.25, Math.PI + 0.5), coat, 'ear', seed);
-    earG.translate(0, 0.029, 0);
-    const innerMat = new T.MeshStandardMaterial({ color: coat.pattern === 'point' ? 0x6b5040 : 0xc9a29e, roughness: 0.9, side: T.BackSide });
-    const earOuter = fur.clone(); earOuter.side = T.FrontSide;
+    // Ears: solid, flattened cones (real thickness, closed edges) with the base sunk into the head.
+    // The pink inner ear is painted onto the front face, fading into a soft rim of fur at the edges.
+    const EAR_R = 0.035, EAR_H = 0.062;
+    const earG = paint(new T.ConeGeometry(EAR_R, EAR_H, 28, 6, false), coat, 'ear', seed);
+    earG.translate(0, EAR_H / 2, 0);
+    {
+      const pos = earG.attributes.position, col = earG.attributes.color;
+      const pink = new T.Color(coat.pattern === 'point' ? 0x5e4436 : 0xb0807f), c = new T.Color(), deep = new T.Color();
+      for (let i = 0; i < pos.count; i++) {
+        const y = pos.getY(i), z = pos.getZ(i), r = EAR_R * (1 - y / EAR_H);
+        const front = r > 1e-4 ? z / r : 0;                       // 1 at the middle of the front face, 0 at the side edges
+        const amt = ss(0.3, 0.62, front) * ss(0.95, 0.78, y / EAR_H);
+        if (amt <= 0) continue;
+        c.setRGB(col.getX(i), col.getY(i), col.getZ(i));
+        deep.copy(pink).multiplyScalar(1 - 0.3 * ss(0.6, 1, front) * ss(0.7, 0.2, y / EAR_H)); // a little darker deep inside
+        c.lerp(deep, amt);
+        col.setXYZ(i, c.r, c.g, c.b);
+      }
+    }
     this.ears = [];
     for (const s of [-1, 1]) {
-      const pivot = new T.Group(); pivot.position.set(s * 0.05, 0.097, 0.024); head.add(pivot);
-      const ear = pick(new T.Mesh(earG, earOuter), 'head'); ear.scale.set(1, 1, 0.55); pivot.add(ear);
-      const inner = new T.Mesh(earG, innerMat); inner.scale.set(0.97, 0.98, 0.5); inner.position.z = 0.002; pivot.add(inner);
-      pivot.rotation.z = -s * 0.36;
+      const pivot = new T.Group(); pivot.position.set(s * 0.04, 0.086, 0.022); head.add(pivot);
+      const ear = pick(new T.Mesh(earG, fur), 'head'); ear.scale.set(1, 1, 0.5); pivot.add(ear);
+      pivot.rotation.z = -s * 0.3;
       this.ears.push({ pivot, side: s });
     }
 
@@ -597,7 +610,7 @@ class CatModel {
     this.head.rotation.x = (this.poseName === 'groom' || ctx.lick) ? Math.sin(this.time * 9) * 0.08 : (gallop ? 0 : Math.sin(this.phase * Math.PI * 4) * 0.02 * this.walk);
     for (const e of this.ears) {
       const twitch = Math.sin(this.time * 0.7 + e.side * 3) > 0.985 ? 0.3 : 0;
-      e.pivot.rotation.set(-P.earBack * 0.9, e.side * P.earBack * 0.4, -e.side * (0.36 + P.earBack * 0.85 + twitch));
+      e.pivot.rotation.set(-P.earBack * 0.9, e.side * P.earBack * 0.4, -e.side * (0.3 + P.earBack * 0.85 + twitch));
     }
     this.blinkT -= dt;
     if (this.blinkT < 0) { this.blink = 0.16; this.blinkT = 2.5 + Math.random() * 4; }
