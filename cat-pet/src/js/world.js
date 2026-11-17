@@ -86,6 +86,8 @@ class World {
     this.raycaster = new T.Raycaster();
 
     this._buildLights();
+    this._buildEnvironment();
+    this._buildContactShadow();
     this._buildOutside();
     this._buildRoom();
     this._buildFurniture();
@@ -129,6 +131,50 @@ class World {
     s.add(this.fill);
   }
 
+  /* Soft image-based lighting for the cat: a blurred copy of a simple room (warm walls, a bright window) */
+  _buildEnvironment() {
+    const env = new T.Scene();
+    const walls = new T.Mesh(new T.BoxGeometry(14, 7, 14), new T.MeshBasicMaterial({ color: 0xc9b193, side: T.BackSide }));
+    env.add(walls);
+    const floor = new T.Mesh(new T.PlaneGeometry(14, 14), new T.MeshBasicMaterial({ color: 0x7a5636 }));
+    floor.rotation.x = -Math.PI / 2; floor.position.y = -3.4; env.add(floor);
+    const win = new T.Mesh(new T.PlaneGeometry(4, 2.6), new T.MeshBasicMaterial({ color: new T.Color(3.2, 3.3, 3.6) }));
+    win.position.set(-1.5, 0.6, -6.9); env.add(win);
+    const pmrem = new T.PMREMGenerator(this.renderer);
+    // Used only by the cat's materials (fur sheen, glossy eyes): applying it to the whole room doubles the rendering cost
+    VPC.envMap = pmrem.fromScene(env, 0.06).texture;
+    pmrem.dispose();
+  }
+  /* A soft dark blob under the cat, so it sits on whatever surface it's on */
+  _buildContactShadow() {
+    const c = document.createElement('canvas'); c.width = c.height = 128;
+    const g = c.getContext('2d'), grd = g.createRadialGradient(64, 64, 4, 64, 64, 62);
+    grd.addColorStop(0, 'rgba(0,0,0,0.55)'); grd.addColorStop(0.5, 'rgba(0,0,0,0.28)'); grd.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = grd; g.fillRect(0, 0, 128, 128);
+    const tex = new T.CanvasTexture(c);
+    this.contactShadow = new T.Mesh(new T.PlaneGeometry(1, 1), new T.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
+    this.contactShadow.rotation.x = -Math.PI / 2;
+    this.contactShadow.renderOrder = 1;
+    this.scene.add(this.contactShadow);
+    this._down = new T.Vector3(0, -1, 0);
+  }
+  /* Place the contact shadow on the surface below (x, y, z); size in metres; heading in radians */
+  updateContactShadow(x, y, z, size, heading) {
+    const rc = this.raycaster;
+    rc.set(new T.Vector3(x, y + 0.25, z), this._down);
+    rc.far = 3;
+    const hit = rc.intersectObjects(this.surfaces, false)[0];
+    rc.far = Infinity;
+    const s = this.contactShadow;
+    if (!hit) { s.visible = false; return; }
+    const gap = Math.max(0, y - hit.point.y);
+    s.visible = true;
+    s.position.set(x, hit.point.y + 0.003, z);
+    s.rotation.z = heading;
+    const grow = 1 + gap * 1.2;
+    s.scale.set(size * 0.55 * grow, size * 0.95 * grow, 1);
+    s.material.opacity = Math.max(0, 1 - gap * 2.2) * (0.55 + 0.45 * (this.daylight ?? 1));
+  }
   _buildOutside() {
     const s = this.scene;
     this.skyMat = new T.MeshBasicMaterial({ color: 0x86c5ef, fog: false });
@@ -553,6 +599,9 @@ class World {
     this.hemi.color.copy(new T.Color(0x9fb0e0).lerp(new T.Color(0xeef4ff), dayK));
     this.fill.intensity = 0.15 + 0.3 * dayK;
     this.renderer.toneMappingExposure = 0.95 + 0.15 * dayK;
+    // Reflections from the room fade with the daylight (the lamp takes over at night)
+    const envI = 0.08 + 0.16 * dayK + (this.lampOn ? 0.05 : 0);
+    this.scene.traverse(o => { if (o.isMesh && o.material && o.material.envMap) o.material.envMapIntensity = envI * 1.8; });
     const winC = new T.Vector3(-0.8, 1.5, -2.6);
     this.sunDisc.position.copy(winC).addScaledVector(dir, 9);
     this.sunDisc.visible = sunUp > -0.05;
