@@ -443,18 +443,20 @@ class CatModel {
     const segs = 11;
     for (let i = 0; i < segs; i++) {
       const sg = new T.Group();
-      sg.position.set(0, i === 0 ? 0.042 : 0, i === 0 ? -0.105 : -0.034);
+      sg.position.set(0, i === 0 ? 0.028 : 0, i === 0 ? -0.075 : -0.034); // root sits inside the rump
       parent.add(sg);
       this.tail.push({ g: sg });
       parent = sg;
     }
     this.tailEnd = new T.Object3D(); this.tailEnd.position.z = -0.034; parent.add(this.tailEnd);
     this._buildTailTube(coat, seed, fur);
+    const rootCap = pick(new T.Mesh(paint(new T.SphereGeometry(0.0215, 14, 10), coat, 'tail', seed + 31), fur), 'tail');
+    this.tail[0].g.add(rootCap);
 
     g.scale.setScalar(this.scale || 1.3);
   }
   _buildTailTube(coat, seed, mat) {
-    const RAD = 12, RINGS = 34, TIP = 4;
+    const RAD = 12, RINGS = 34, TIP = 6;
     this.tailRad = RAD; this.tailRings = RINGS; this.tailTip = TIP;
     const total = RINGS + TIP;
     const pos = new Float32Array(total * RAD * 3), nrm = new Float32Array(total * RAD * 3), col = new Float32Array(total * RAD * 3), uv = new Float32Array(total * RAD * 2);
@@ -467,7 +469,7 @@ class CatModel {
       uv[(i * RAD + j) * 2] = j / RAD; uv[(i * RAD + j) * 2 + 1] = i / total * 3;
       if (i < total - 1) {
         const a0 = i * RAD + j, a1 = i * RAD + (j + 1) % RAD, b0 = a0 + RAD, b1 = a1 + RAD;
-        idx.push(a0, b0, a1, a1, b0, b1);
+        idx.push(a0, a1, b0, a1, b1, b0); // wound so the triangles face outward
       }
     }
     const g = new T.BufferGeometry();
@@ -489,6 +491,23 @@ class CatModel {
     root.updateMatrixWorld(true);
     for (let i = 0; i < this.tail.length; i++) { this.tail[i].g.getWorldPosition(pts[i]); root.worldToLocal(pts[i]); }
     this.tailEnd.getWorldPosition(pts[this.tail.length]); root.worldToLocal(pts[this.tail.length]);
+    // The tail rests on the surface the cat is on instead of sinking into it: each segment keeps its
+    // length, and once it reaches the ground it continues along the ground in the same direction
+    const F = 0.019;
+    if (pts.some(q => q.y < F)) {
+      const orig = this._tailOrig || (this._tailOrig = pts.map(() => new T.Vector3()));
+      for (let i = 0; i < pts.length; i++) orig[i].copy(pts[i]);
+      if (pts[0].y < F) pts[0].y = F;
+      let hx = 0, hz = -1;
+      for (let i = 1; i < pts.length; i++) {
+        const dx = orig[i].x - orig[i - 1].x, dy = orig[i].y - orig[i - 1].y, dz = orig[i].z - orig[i - 1].z;
+        const L = Math.hypot(dx, dy, dz), hl = Math.hypot(dx, dz);
+        if (hl > 1e-5) { hx = dx / hl; hz = dz / hl; }
+        const ny = Math.max(dy, F - pts[i - 1].y);
+        const h = Math.sqrt(Math.max(0, L * L - ny * ny));
+        pts[i].set(pts[i - 1].x + hx * h, pts[i - 1].y + ny, pts[i - 1].z + hz * h);
+      }
+    }
     const RAD = this.tailRad, RINGS = this.tailRings, TIP = this.tailTip;
     const g = this.tailMesh.geometry, P = g.attributes.position.array, Nn = g.attributes.normal.array;
     const n = this._n, b = this._b, t = this._t, p = _v3;
@@ -512,7 +531,7 @@ class CatModel {
     }
     // Rounded tip
     for (let k = 1; k <= TIP; k++) {
-      const a0 = (k / TIP) * Math.PI / 2, rr = r * Math.cos(a0), adv = r * Math.sin(a0);
+      const a0 = (k / TIP) * Math.PI / 2, rr = r * Math.cos(a0), adv = r * 1.6 * Math.sin(a0);
       for (let j = 0; j < RAD; j++) {
         const a = (j / RAD) * Math.PI * 2, ca = Math.cos(a), sa = Math.sin(a);
         const nx = n.x * ca + b.x * sa, ny = n.y * ca + b.y * sa, nz = n.z * ca + b.z * sa;
@@ -603,7 +622,7 @@ class CatModel {
       if (i === 0) rx = -0.3 + P.tailUp * 0.95;
       else if (f < 0.55) rx = P.tailUp * (P.tailUp > 1.2 ? 0.02 : -0.03);
       else rx = P.tailUp * (P.tailUp > 1.2 ? 0.03 : 0.16);
-      if (P.tailUp < 0) rx = i === 0 ? -0.15 + P.tailUp * 0.6 : 0.03;
+      if (P.tailUp < 0) rx = i === 0 ? -0.15 + P.tailUp * 0.6 : -0.02;
       let ry = Math.sin(this.time * swaySpeed - i * 0.45) * swayAmp * (0.3 + f) / 3 + P.tailCurl * 0.16 * (i > 1 ? 1 : 0.3);
       if (gallop) rx -= 0.04;
       this.tail[i].g.rotation.set(rx, ry, 0);
