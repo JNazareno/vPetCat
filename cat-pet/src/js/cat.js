@@ -41,15 +41,19 @@ function furColor(coat, part, p, seed) {
   switch (C.pattern) {
     case 'tabby': {
       if (part === 'body') {
-        const stripe = Math.sin(p.z * 11 + n * 2.2 + Math.abs(p.x) * 2);
-        c.lerp(dark, ss(0.1, 0.6, stripe) * ss(-0.45, -0.1, p.y) * 0.92);
+        // Mackerel tabby: many thin stripes running down the flanks, broken up by noise, and a dark line along the spine
+        const brk = noise3(p.x * 6, p.y * 6, p.z * 6, seed + 11);
+        const stripe = Math.sin(p.z * 23 + n * 2.6 + Math.abs(p.x) * 3.5 - p.y * 2);
+        c.lerp(dark, ss(0.35, 0.8, stripe) * ss(-0.45, -0.05, p.y) * ss(-0.35, 0.1, brk) * 0.9);
+        c.lerp(dark, ss(0.72, 0.9, p.y) * ss(0.3, 0.12, Math.abs(p.x)) * 0.85);
         c.lerp(light, ss(-0.35, -0.65, p.y));
       } else if (part === 'head') {
         c.lerp(dark, ss(0.25, 0.45, p.y) * ss(0.55, 0.9, Math.abs(Math.sin(p.x * 13))) * ss(-0.3, -0.1, p.z));
         c.lerp(dark, ss(0.6, 0.8, Math.abs(p.x)) * ss(0.2, 0.65, Math.sin(p.y * 18)) * ss(-0.3, -0.15, p.y) * ss(0.35, 0.2, p.y));
         c.lerp(light, ss(-0.25, -0.5, p.y) * ss(0.15, 0.4, p.z));
+        c.lerp(light, ss(0.55, 0.8, p.z) * ss(-0.05, -0.3, p.y) * ss(0.55, 0.35, Math.abs(p.x)));
       } else if (part === 'leg') {
-        c.lerp(dark, ss(0.3, 0.75, Math.sin(p.y * 22)) * ss(-0.85, -0.7, p.y) * 0.9);
+        c.lerp(dark, ss(0.4, 0.8, Math.sin(p.y * 26)) * ss(-0.85, -0.7, p.y) * 0.85);
       } else if (part === 'muzzle' || part === 'chin') c.copy(light);
       else if (part === 'tailRing') c.copy(dark);
       break;
@@ -67,6 +71,7 @@ function furColor(coat, part, p, seed) {
       c.lerp(dark, ss(-0.17, -0.33, k));
       if (part === 'body') c.lerp(light, ss(-0.3, -0.55, p.y));
       if (part === 'muzzle' || part === 'chin' || part === 'paw') c.copy(light);
+      if (part === 'head') c.lerp(light, ss(0.5, 0.75, p.z) * ss(0.0, -0.3, p.y) * ss(0.6, 0.4, Math.abs(p.x)));
       if (part === 'leg') c.lerp(light, ss(-0.4, -0.62, p.y));
       break;
     }
@@ -81,6 +86,7 @@ function furColor(coat, part, p, seed) {
     }
     default:
       if (part === 'body') c.lerp(light, ss(-0.4, -0.65, p.y) * 0.4);
+      if (part === 'head') c.lerp(light, ss(0.6, 0.85, p.z) * ss(-0.1, -0.35, p.y) * 0.35);
       if (part === 'muzzle' || part === 'chin') c.lerp(light, 0.5);
   }
   if (part === 'ear' && C.pattern !== 'point' && C.pattern !== 'calico') c.copy(base);
@@ -216,9 +222,9 @@ function furTextures() {
 /* Iris texture: radial fibres, darker rim */
 function irisTexture(hex) {
   const c = document.createElement('canvas'); c.width = c.height = 128;
-  const g = c.getContext('2d'), base = new T.Color(hex);
+  const g = c.getContext('2d'), base = new T.Color(hex).lerp(new T.Color(0x6e6040), 0.28);
   const css = (col, a = 1) => `rgba(${Math.round(col.r * 255)},${Math.round(col.g * 255)},${Math.round(col.b * 255)},${a})`;
-  const light = base.clone().lerp(new T.Color(0xfff6c8), 0.45), dark = base.clone().multiplyScalar(0.45);
+  const light = base.clone().lerp(new T.Color(0xf2e6b0), 0.28), dark = base.clone().multiplyScalar(0.5);
   const grd = g.createRadialGradient(64, 64, 6, 64, 64, 64);
   grd.addColorStop(0, css(light)); grd.addColorStop(0.55, css(base)); grd.addColorStop(0.86, css(base.clone().multiplyScalar(0.8))); grd.addColorStop(0.95, css(dark)); grd.addColorStop(1, 'rgba(10,10,10,1)');
   g.fillStyle = grd; g.fillRect(0, 0, 128, 128);
@@ -237,7 +243,7 @@ const BODY_W   = [[0, 0.068], [0.15, 0.08], [0.3, 0.082], [0.52, 0.068], [0.72, 
 const BODY_TOP = [[0, 0.066], [0.15, 0.075], [0.3, 0.078], [0.52, 0.07], [0.76, 0.08], [1, 0.07]];
 const BODY_BOT = [[0, 0.064], [0.15, 0.084], [0.3, 0.088], [0.5, 0.082], [0.76, 0.1], [1, 0.074]];
 function bodyGeometry(coat, seed) {
-  const g = new T.SphereGeometry(1, 44, 32);
+  const g = new T.SphereGeometry(1, 40, 56);
   g.rotateX(Math.PI / 2); // poles along z (tail end -> chest)
   paint(g, coat, 'body', seed);
   const pos = g.attributes.position, half = (BODY.zMax - BODY.zMin) / 2, mid = (BODY.zMax + BODY.zMin) / 2;
@@ -260,11 +266,19 @@ function headGeometry(coat, seed) {
   const pos = g.attributes.position, clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   for (let i = 0; i < pos.count; i++) {
     const px = pos.getX(i), py = pos.getY(i), pz = pos.getZ(i);
-    let X = px * 0.079, Y = py * 0.068, Z = pz * 0.071;
-    X *= 1 + 0.2 * clamp((0.2 - py) / 0.9, 0, 1) * (1 - 0.4 * clamp(pz, 0, 1));       // cheeks / jowls
-    if (py > 0) Y *= 1 - 0.14 * py * py;                                               // flatter forehead
-    const muzzle = clamp((pz - 0.5) / 0.5, 0, 1) * clamp(1 - Math.abs(py + 0.28) / 0.42, 0, 1) * clamp(1 - Math.abs(px) / 0.7, 0, 1);
-    Z += muzzle * 0.026; Y -= muzzle * 0.004;                                          // muzzle
+    let X = px * 0.084, Y = py * 0.062, Z = pz * 0.069;
+    X *= 1 + 0.14 * clamp((0.1 - py) / 0.9, 0, 1) * (1 - 0.4 * clamp(pz, 0, 1));      // cheeks / jowls
+    if (py > 0) { Y *= 1 - 0.1 * py * py; Z -= py * clamp(pz, 0, 1) * 0.012; }         // forehead slopes back from the nose
+    const muzzle = clamp((pz - 0.45) / 0.55, 0, 1) * clamp(1 - Math.abs(py + 0.3) / 0.45, 0, 1) * clamp(1 - Math.abs(px) / 0.62, 0, 1);
+    Z += muzzle * 0.034; Y -= muzzle * 0.005;                                          // muzzle
+    for (const sd of [-1, 1]) {                                                         // whisker pads
+      const d = Math.hypot((px - sd * 0.26) / 0.24, (py + 0.42) / 0.2);
+      const bump = Math.pow(clamp(1 - d, 0, 1), 1.6) * clamp((pz - 0.55) / 0.45, 0, 1);
+      Z += bump * 0.019; X += sd * bump * 0.004; Y -= bump * 0.003;
+    }
+    const dc = Math.hypot(px / 0.22, (py + 0.72) / 0.16);                              // chin
+    Z += Math.pow(clamp(1 - dc, 0, 1), 1.5) * clamp(pz - 0.4, 0, 1) * 0.016;
+    if (py < -0.45) Y *= 1 + (-py - 0.45) * 0.22;                                       // fuller, rounder jaw line
     const brow = clamp((pz - 0.55) / 0.45, 0, 1) * clamp(1 - Math.abs(py - 0.3) / 0.25, 0, 1);
     Z -= brow * 0.004;                                                                 // the "stop" above the nose
     if (pz < 0) Z *= 0.93;
@@ -314,7 +328,7 @@ class CatModel {
     // Neck / scruff, bridging the chest and the head
     const neckG = paint(new T.SphereGeometry(1, 28, 20), coat, 'body', seed, p => { p.z = p.z * 0.4 + 0.7; p.y = p.y * 0.7 + 0.2; });
     const neckM = pick(new T.Mesh(neckG, fur), 'chest');
-    neckM.scale.set(0.054, 0.072, 0.085); neckM.position.set(0, 0.045, 0.252); neckM.rotation.x = -0.55;
+    neckM.scale.set(0.062, 0.07, 0.085); neckM.position.set(0, 0.04, 0.248); neckM.rotation.x = -0.55;
     hip.add(neckM);
 
     // Legs (meshes live in the root frame; the IK places them every frame)
@@ -354,56 +368,52 @@ class CatModel {
     }
 
     // Neck pivot + head
-    const neck = this.neck = new T.Group(); neck.position.set(0, 0.07, 0.27); hip.add(neck);
+    const neck = this.neck = new T.Group(); neck.position.set(0, 0.062, 0.266); hip.add(neck);
     // Throat/neck fur that turns with the head, filling the gap between neck and skull
     const throat = pick(new T.Mesh(paint(new T.SphereGeometry(1, 24, 18), coat, 'body', seed, p => { p.z = p.z * 0.4 + 0.75; p.y = p.y * 0.6 + 0.15; }), fur), 'chest');
-    throat.scale.set(0.046, 0.056, 0.055); throat.position.set(0, 0.008, 0.0); neck.add(throat);
+    throat.scale.set(0.05, 0.054, 0.055); throat.position.set(0, 0.01, 0.0); neck.add(throat);
     const head = this.head = new T.Group(); neck.add(head);
     const skull = pick(new T.Mesh(headGeometry(coat, seed), fur), 'head');
     head.add(skull);
-    const muzG = paint(new T.SphereGeometry(1, 18, 14), coat, 'muzzle', seed);
-    for (const s of [-1, 1]) { const m = pick(new T.Mesh(muzG, fur), 'chin'); m.scale.set(0.021, 0.0165, 0.017); m.position.set(s * 0.0178, 0.021, 0.113); head.add(m); }
-    const chin = pick(new T.Mesh(paint(new T.SphereGeometry(1, 14, 10), coat, 'chin', seed), fur), 'chin');
-    chin.scale.set(0.016, 0.012, 0.016); chin.position.set(0, 0.004, 0.105); head.add(chin);
     this.mouthMesh = new T.Mesh(new T.SphereGeometry(1, 12, 8), new T.MeshStandardMaterial({ color: 0x6b2430, roughness: 0.6 }));
     this.mouthMesh.scale.set(0.014, 0.001, 0.009); this.mouthMesh.position.set(0, 0.009, 0.125); head.add(this.mouthMesh);
     // Nose leather: a rounded triangle pointing down
     const noseCol = coat.pattern === 'point' || coatKey === 'black' ? 0x3a2a2a : coatKey === 'grey' ? 0x8a6a72 : 0xe0849a;
-    const nose = new T.Mesh(new T.CylinderGeometry(0.0115, 0.004, 0.011, 3, 1), new T.MeshPhysicalMaterial({ color: new T.Color(noseCol).multiplyScalar(0.85), roughness: 0.55, clearcoat: 0.3, clearcoatRoughness: 0.5 }));
-    nose.rotation.set(Math.PI / 2 - 0.35, 0, Math.PI); nose.scale.set(1, 1, 0.55); nose.position.set(0, 0.04, 0.138); head.add(nose);
-    const bridge = new T.Mesh(new T.CylinderGeometry(0.006, 0.0005, 0.014, 6), nose.material);
-    bridge.position.set(0, 0.03, 0.135); head.add(bridge);
+    const nose = new T.Mesh(new T.CylinderGeometry(0.0098, 0.0038, 0.007, 3, 1), new T.MeshStandardMaterial({ color: new T.Color(noseCol).lerp(new T.Color(0x7a5a55), 0.3), roughness: 0.6 }));
+    nose.rotation.set(Math.PI / 2 - 0.45, 0, Math.PI); nose.scale.set(1, 1, 0.5); nose.position.set(0, 0.039, 0.134); head.add(nose);
 
     // Eyes: dark eyeball, textured iris disc, slit pupil, glossy cornea
     this.eyes = [];
     const irisTex = irisTexture(coat.eye);
     const ballMat = new T.MeshStandardMaterial({ color: new T.Color(coat.eye).multiplyScalar(0.25), roughness: 0.4 });
-    const irisMat = new T.MeshStandardMaterial({ map: irisTex, roughness: 0.3, emissive: new T.Color(coat.eye), emissiveMap: irisTex, emissiveIntensity: 0.12 });
+    const irisMat = new T.MeshStandardMaterial({ map: irisTex, roughness: 0.35, emissive: new T.Color(coat.eye), emissiveMap: irisTex, emissiveIntensity: 0.03 });
     const pupilMat = new T.MeshBasicMaterial({ color: 0x050505 });
-    const corneaMat = new T.MeshPhysicalMaterial({ color: 0xffffff, transparent: true, opacity: 0.12, roughness: 0.02, clearcoat: 1, clearcoatRoughness: 0.02, depthWrite: false, envMap: VPC.envMap || null, envMapIntensity: 1 });
+    const corneaMat = new T.MeshPhysicalMaterial({ color: 0xffffff, transparent: true, opacity: 0.08, roughness: 0.03, clearcoat: 1, clearcoatRoughness: 0.03, depthWrite: false, envMap: VPC.envMap || null, envMapIntensity: 0.8 });
+    const rimMat = new T.MeshStandardMaterial({ color: 0x1a1512, roughness: 0.8 });
     const lidMat = new T.MeshStandardMaterial({ color: new T.Color(coat.pattern === 'tabby' || coat.pattern === 'point' ? coat.dark : coat.base).multiplyScalar(0.5), roughness: 1 });
     for (const s of [-1, 1]) {
-      const eg = new T.Group(); eg.position.set(s * 0.034, 0.062, 0.1); eg.rotation.y = s * 0.36; eg.rotation.z = s * -0.12; head.add(eg);
-      const ball = new T.Mesh(new T.SphereGeometry(0.0195, 18, 14), ballMat); ball.scale.set(1, 0.92, 0.55); eg.add(ball);
-      const iris = new T.Mesh(new T.CircleGeometry(0.0172, 32), irisMat); iris.position.z = 0.0099; iris.scale.y = 0.95; eg.add(iris);
-      const pupil = new T.Mesh(new T.CircleGeometry(0.016, 24), pupilMat); pupil.position.z = 0.0101; pupil.scale.set(0.3, 0.9, 1); eg.add(pupil);
-      const cornea = new T.Mesh(new T.SphereGeometry(0.0182, 18, 12, 0, Math.PI * 2, 0, Math.PI / 2), corneaMat); cornea.rotation.x = Math.PI / 2; cornea.scale.set(1, 0.6, 0.92); cornea.position.z = 0.002; eg.add(cornea);
-      const shine = new T.Mesh(new T.SphereGeometry(0.0024, 8, 6), new T.MeshBasicMaterial({ color: 0xffffff })); shine.position.set(0.004, 0.005, 0.0118); eg.add(shine);
-      const lid = new T.Mesh(new T.BoxGeometry(0.036, 0.0028, 0.004), lidMat); lid.position.set(0, -0.001, 0.0125); lid.rotation.z = s * -0.12; eg.add(lid);
-      this.eyes.push({ g: eg, iris, pupil, shine, lid, cornea });
+      // Set slightly into the head so the surrounding fur frames the eye; outer corners tilt up
+      const eg = new T.Group(); eg.position.set(s * 0.0335, 0.061, 0.0988); eg.rotation.y = s * 0.4; eg.rotation.z = s * 0.2; head.add(eg);
+      const ball = new T.Mesh(new T.SphereGeometry(0.016, 18, 14), ballMat); ball.scale.set(1, 1, 0.55); eg.add(ball);
+      const iris = new T.Mesh(new T.CircleGeometry(0.0139, 32), irisMat); iris.position.z = 0.0089; eg.add(iris);
+      const pupil = new T.Mesh(new T.CircleGeometry(0.0128, 24), pupilMat); pupil.position.z = 0.0091; pupil.scale.set(0.3, 0.92, 1); eg.add(pupil);
+      const rim = new T.Mesh(new T.TorusGeometry(0.0146, 0.0016, 8, 36), rimMat); rim.position.z = 0.0078; eg.add(rim);
+      const cornea = new T.Mesh(new T.SphereGeometry(0.0148, 18, 12, 0, Math.PI * 2, 0, Math.PI / 2), corneaMat); cornea.rotation.x = Math.PI / 2; cornea.scale.set(1, 0.55, 1); cornea.position.z = 0.0062; eg.add(cornea);
+      const lid = new T.Mesh(new T.BoxGeometry(0.03, 0.0024, 0.004), lidMat); lid.position.set(0, -0.001, 0.0105); eg.add(lid);
+      this.eyes.push({ g: eg, iris, pupil, lid, cornea });
     }
 
     // Ears: cupped shells, fur outside and pink inside
-    const earG = paint(new T.ConeGeometry(0.031, 0.062, 18, 1, true, Math.PI / 2 - 0.25, Math.PI + 0.5), coat, 'ear', seed);
-    earG.translate(0, 0.031, 0);
-    const innerMat = new T.MeshStandardMaterial({ color: coat.pattern === 'point' ? 0x6b5040 : 0xd8a3a6, roughness: 0.85, side: T.BackSide });
+    const earG = paint(new T.ConeGeometry(0.034, 0.058, 18, 1, true, Math.PI / 2 - 0.25, Math.PI + 0.5), coat, 'ear', seed);
+    earG.translate(0, 0.029, 0);
+    const innerMat = new T.MeshStandardMaterial({ color: coat.pattern === 'point' ? 0x6b5040 : 0xc9a29e, roughness: 0.9, side: T.BackSide });
     const earOuter = fur.clone(); earOuter.side = T.FrontSide;
     this.ears = [];
     for (const s of [-1, 1]) {
-      const pivot = new T.Group(); pivot.position.set(s * 0.045, 0.104, 0.03); head.add(pivot);
+      const pivot = new T.Group(); pivot.position.set(s * 0.05, 0.097, 0.024); head.add(pivot);
       const ear = pick(new T.Mesh(earG, earOuter), 'head'); ear.scale.set(1, 1, 0.55); pivot.add(ear);
       const inner = new T.Mesh(earG, innerMat); inner.scale.set(0.97, 0.98, 0.5); inner.position.z = 0.002; pivot.add(inner);
-      pivot.rotation.z = -s * 0.3;
+      pivot.rotation.z = -s * 0.36;
       this.ears.push({ pivot, side: s });
     }
 
@@ -411,12 +421,21 @@ class CatModel {
     const wpts = [];
     for (const s of [-1, 1]) for (const k of [-1, 0, 1]) {
       const a = new T.Vector3(s * 0.027, 0.022 + k * 0.006, 0.126);
-      const b = new T.Vector3(s * 0.078, 0.028 + k * 0.018, 0.117 - Math.abs(k) * 0.006);
-      const c = new T.Vector3(s * 0.122, 0.018 + k * 0.026, 0.1 - Math.abs(k) * 0.012);
+      const b = new T.Vector3(s * 0.07, 0.027 + k * 0.015, 0.117 - Math.abs(k) * 0.006);
+      const c = new T.Vector3(s * 0.105, 0.017 + k * 0.022, 0.103 - Math.abs(k) * 0.012);
       const crv = new T.QuadraticBezierCurve3(a, b, c).getPoints(6);
       for (let i = 0; i < crv.length - 1; i++) wpts.push(crv[i], crv[i + 1]);
     }
-    head.add(new T.LineSegments(new T.BufferGeometry().setFromPoints(wpts), new T.LineBasicMaterial({ color: coatKey === 'white' || coat.pattern === 'point' ? 0x9a9a9a : 0xf4f4f4, transparent: true, opacity: 0.8 })));
+    const mouthPts = [];
+    const ph = [new T.Vector3(0, 0.033, 0.1345), new T.Vector3(0, 0.024, 0.1355)];
+    mouthPts.push(ph[0], ph[1]);
+    for (const sd of [-1, 1]) {
+      const crv = new T.QuadraticBezierCurve3(ph[1], new T.Vector3(sd * 0.007, 0.016, 0.135), new T.Vector3(sd * 0.017, 0.017, 0.128)).getPoints(6);
+      for (let i = 0; i < crv.length - 1; i++) mouthPts.push(crv[i], crv[i + 1]);
+    }
+    this.mouthLine = new T.LineSegments(new T.BufferGeometry().setFromPoints(mouthPts), new T.LineBasicMaterial({ color: new T.Color(coat.pattern === 'point' || coatKey === 'black' ? 0x0d0b0a : coat.dark).multiplyScalar(0.5), transparent: true, opacity: 0.7 }));
+    head.add(this.mouthLine);
+    head.add(new T.LineSegments(new T.BufferGeometry().setFromPoints(wpts), new T.LineBasicMaterial({ color: coatKey === 'white' || coat.pattern === 'point' ? 0x9a9a9a : 0xe6e3dc, transparent: true, opacity: 0.5 })));
 
     // Tail: a chain of joints (animated) skinned by one seamless tube mesh
     this.tail = [];
@@ -559,19 +578,19 @@ class CatModel {
     this.head.rotation.x = (this.poseName === 'groom' || ctx.lick) ? Math.sin(this.time * 9) * 0.08 : (gallop ? 0 : Math.sin(this.phase * Math.PI * 4) * 0.02 * this.walk);
     for (const e of this.ears) {
       const twitch = Math.sin(this.time * 0.7 + e.side * 3) > 0.985 ? 0.3 : 0;
-      e.pivot.rotation.set(-P.earBack * 0.9, e.side * P.earBack * 0.4, -e.side * (0.3 + P.earBack * 0.85 + twitch));
+      e.pivot.rotation.set(-P.earBack * 0.9, e.side * P.earBack * 0.4, -e.side * (0.36 + P.earBack * 0.85 + twitch));
     }
     this.blinkT -= dt;
     if (this.blinkT < 0) { this.blink = 0.16; this.blinkT = 2.5 + Math.random() * 4; }
     if (this.blink > 0) this.blink -= dt;
     const open = Math.max(0.02, P.eye * (this.blink > 0 ? 0.05 : 1));
     for (const e of this.eyes) {
-      e.g.scale.y = open;
-      e.pupil.scale.x = 0.18 + P.pupil * 0.62;
-      e.shine.visible = open > 0.4;
+      e.g.scale.y = open * 0.86; // almond-shaped even when wide open
+      e.pupil.scale.x = 0.16 + P.pupil * 0.62;
       e.lid.visible = open < 0.35;
       e.lid.scale.y = 1 / Math.max(open, 0.05) * 0.9;
     }
+    this.mouthMesh.visible = P.mouth > 0.05; // only open when meowing, yawning or hissing
     this.mouthMesh.scale.y = 0.001 + P.mouth * 0.012;
     this.mouthMesh.position.y = 0.009 - P.mouth * 0.006;
 
